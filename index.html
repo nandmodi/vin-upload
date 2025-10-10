@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <style>
-  /* Your CSS unchanged (kept) */
+  /* Your CSS unchanged */
   body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
   .header-bar { position: fixed; top: 0; left: 0; right: 0; background: #fff; padding: 10px 0; text-align: center; font-weight: bold; font-size: 22px; z-index: 10000; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
   .tabs { position: fixed; top: 48px; left: 0; right: 0; background: #fff; display: flex; border-bottom: 2px solid #ccc; z-index: 10000; }
@@ -42,81 +42,78 @@
   #severityTrendChart, #issueTrendChart { height: 300px; }
   .summary-tables { margin-top: 30px; }
 
-  /* ===== Dropdown: added per your request ===== */
-  .header-bar-inner {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center; /* keeps title centered even with left menu */
-  }
-  .menu-left {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10001; /* above tabs */
-  }
+  /* Tab content show/hide */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 
-  /* Provided dropdown styles (kept, with tiny tweaks for header fit) */
-  .dropbtn {
-    background-color: #04AA6D;
-    color: white;
-    padding: 8px 12px; /* reduced to fit 48px header */
-    font-size: 14px;   /* reduced to fit 48px header */
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
+  /* ======= Hamburger + Dropdown (using provided image) ======= */
+  .menu-wrapper {
+    position: fixed;
+    top: 8px;
+    left: 10px;
+    z-index: 11000; /* above header/tabs */
   }
-  .dropdown {
-    position: relative;
-    display: inline-block;
-  }
-  .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f1f1f1;
-    min-width: 200px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 10002;
+  .hamburger {
+    width: 38px;
+    height: 38px;
     border-radius: 8px;
-    overflow: hidden;
-    margin-top: 6px;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    padding: 0;
   }
-  .dropdown-content a {
-    color: #111;
-    padding: 10px 14px;
-    text-decoration: none;
+  .hamburger img {
+    width: 24px;
+    height: 24px;
     display: block;
+  }
+  .menu-dropdown {
+    position: absolute;
+    top: 44px;
+    left: 0;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    padding: 6px;
+    display: none;
+  }
+  .menu-dropdown.open { display: block; }
+  .menu-item {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #111827;
+    font-weight: 600;
     font-size: 14px;
   }
-  .dropdown-content a:hover { background-color: #ddd; }
-  .dropdown:hover .dropdown-content { display: block; }
-  .dropdown:hover .dropbtn { background-color: #3e8e41; }
-  /* ===== End Dropdown ===== */
-
-  /* Small screens: keep title readable if menu wraps */
+  .menu-item:hover {
+    background: #f3f4f6;
+  }
   @media (max-width: 480px) {
-    .dropbtn { font-size: 13px; padding: 8px 10px; }
-    .header-bar { padding: 12px 0; }
+    .header-bar { padding-left: 56px; }
   }
 </style>
 </head>
 <body>
 
-<!-- Header with left-corner menu -->
-<div class="header-bar">
-  <div class="header-bar-inner">
-    <div class="menu-left">
-      <div class="dropdown">
-        <button class="dropbtn">Dropdown</button>
-        <div class="dropdown-content">
-          <a href="https://nandmodi.github.io/360-Issue-Reports/validation-failed.html" target="_blank" rel="noopener">Validation</a>
-        </div>
-      </div>
-    </div>
-    <div>360 Issue Dashboard</div>
+<!-- Menu button + dropdown -->
+<div class="menu-wrapper">
+  <button id="menuButton" class="hamburger" aria-label="Open menu" aria-expanded="false">
+    <img src="https://spyne-prod-ai.s3.us-east-1.amazonaws.com/ai-dataset/2025/lines.png" alt="Menu" />
+  </button>
+  <div id="menuDropdown" class="menu-dropdown" role="menu" aria-hidden="true">
+    <a class="menu-item" href="https://nandmodi.github.io/360-Issue-Reports/validation-failed.html" target="_blank" rel="noopener">Validation Report</a>
   </div>
 </div>
+
+<div class="header-bar">360 Issue Dashboard</div>
 
 <div class="tabs">
   <div class="tab active" data-tab="dashboardTab">Dashboard</div>
@@ -149,6 +146,7 @@
   <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
   <div class="summary-item">High Severity <span class="summary-value" id="highIssues">0</span></div>
   <div class="summary-item">Low Severity <span class="summary-value" id="lowIssues">0</span></div>
+  <div class="summary-item">Accuracy <span class="summary-value" id="accuracy">0%</span></div>
 </div>
 
 <!-- Dashboard Tab -->
@@ -184,7 +182,7 @@
             <th onclick="sortTable(this)">High</th>
             <th onclick="sortTable(this)">Low</th>
           </tr>
-        </thead>
+</thead>
         <tbody></tbody>
       </table>
     </div>
@@ -224,7 +222,7 @@
       <tbody id="severityDetailsBody"></tbody>
     </table>
 
-    <div class="summary-tables">
+ <div class="summary-tables">
       <h3>Severity Details (Week-wise)</h3>
       <table id="severityDetailsWeekTable">
         <thead><tr id="severityDetailsWeekHeader"><th onclick="sortTable(this)">Severity</th></tr></thead>
@@ -238,6 +236,7 @@
       <tbody id="issueDetailsBody"></tbody>
     </table>
 
+   
     <div class="summary-tables">
       <h3>Issue Details (Week-wise)</h3>
       <table id="issueDetailsWeekTable">
@@ -249,6 +248,36 @@
 </div>
 
 <script>
+  /* Menu toggle logic */
+  (function setupMenu(){
+    const btn = document.getElementById('menuButton');
+    const menu = document.getElementById('menuDropdown');
+
+    function closeMenu() {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
+    }
+    function toggleMenu(e) {
+      e.stopPropagation();
+      const open = !menu.classList.contains('open');
+      if (open) {
+        menu.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+        menu.setAttribute('aria-hidden', 'false');
+      } else {
+        closeMenu();
+      }
+    }
+    btn.addEventListener('click', toggleMenu);
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && e.target !== btn) closeMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
+  })();
+
   let globalData = [];
   let totalDataGlobal = [];
   let weekRanges = {};
@@ -293,17 +322,19 @@
     weekRanges = {};
     const today = new Date();
     const lastSunday = new Date(today.setDate(today.getDate() - today.getDay()));
+
     for (let i = 0; i < 4; i++) {
-      const weekEndDate = new Date(lastSunday.getTime());
-      weekEndDate.setDate(lastSunday.getDate() - (i * 7));
-      const weekStartDate = new Date(weekEndDate.getTime());
-      weekStartDate.setDate(weekEndDate.getDate() - 6);
-      const weekName = `Week ${i + 1}`;
-      weekRanges[weekName] = {
-        name: `${weekName}: ${getFormattedWeekRange(weekStartDate, weekEndDate)}`,
-        start: weekStartDate,
-        end: weekEndDate
-      };
+        const weekEndDate = new Date(lastSunday.getTime());
+        weekEndDate.setDate(lastSunday.getDate() - (i * 7));
+        const weekStartDate = new Date(weekEndDate.getTime());
+        weekStartDate.setDate(weekEndDate.getDate() - 6);
+
+        const weekName = `Week ${i + 1}`;
+        weekRanges[weekName] = { 
+            name: `${weekName}: ${getFormattedWeekRange(weekStartDate, weekEndDate)}`,
+            start: weekStartDate,
+            end: weekEndDate 
+        };
     }
   }
 
@@ -356,8 +387,9 @@
     const markedMatch = row => {
       const rowDate = row['Date'] ? new Date(row['Date']) : null;
       if (!rowDate) return false;
-      const rowMonth = row['Month'];
 
+      const rowMonth = row['Month'];
+      
       const monthMatch = !filters.Month || (
         !isWeekFilter && rowMonth === filters.Month
       ) || (
@@ -375,8 +407,9 @@
     const receivedMatch = row => {
       const rowDate = row['Date'] ? new Date(row['Date']) : null;
       if (!rowDate) return false;
-      const rowMonth = row['Month'];
 
+      const rowMonth = row['Month'];
+      
       const monthMatch = !filters.Month || (
         !isWeekFilter && rowMonth === filters.Month
       ) || (
@@ -395,7 +428,7 @@
     document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
     document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
 
-    populateSummarySection(filteredMarked);
+    populateSummarySection(filteredMarked, filteredReceived);
 
     populateFilters(globalData);
     renderIssueTable(filteredMarked);
@@ -412,13 +445,30 @@
     renderIssueDetailsWeekTable(filteredMarked);
   }
 
-  function populateSummarySection(data) {
-    document.getElementById('totalSpins').textContent = data.length;
-    document.getElementById('uniqueIssues').textContent = new Set(data.map(d => d.Issue)).size;
-    document.getElementById('uniqueEnterprises').textContent = new Set(data.map(d => d.Enterprise)).size;
-    document.getElementById('blockerIssues').textContent = data.filter(d => d.Severity === 'Blocker').length;
-    document.getElementById('highIssues').textContent = data.filter(d => d.Severity === 'High').length;
-    document.getElementById('lowIssues').textContent = data.filter(d => d.Severity === 'Low').length;
+  function populateSummarySection(markedData, receivedData) {
+    document.getElementById('totalSpins').textContent = markedData.length;
+    document.getElementById('uniqueIssues').textContent = new Set(markedData.map(d => d.Issue)).size;
+    document.getElementById('uniqueEnterprises').textContent = new Set(markedData.map(d => d.Enterprise)).size;
+    document.getElementById('blockerIssues').textContent = markedData.filter(d => d.Severity === 'Blocker').length;
+    document.getElementById('highIssues').textContent = markedData.filter(d => d.Severity === 'High').length;
+    document.getElementById('lowIssues').textContent = markedData.filter(d => d.Severity === 'Low').length;
+    
+    // Calculate accuracy
+    const accurateSpins = receivedData.filter(row => {
+      const issue = row['Issue'] || '';
+      const validationFailure = row['validation_failure_reason'] || '';
+      const vdpValidationFailure = row['vdp_validation_failure_reason'] || '';
+      
+      // Check if all are empty (or '{}')
+      const isIssueEmpty = !issue || issue.trim() === '' || issue === '{}';
+      const isValidationEmpty = !validationFailure || validationFailure.trim() === '' || validationFailure === '{}';
+      const isVdpValidationEmpty = !vdpValidationFailure || vdpValidationFailure.trim() === '' || vdpValidationFailure === '{}';
+      
+      return isIssueEmpty && isValidationEmpty && isVdpValidationEmpty;
+    });
+    
+    const accuracy = receivedData.length ? ((accurateSpins.length / receivedData.length) * 100).toFixed(1) : 0;
+    document.getElementById('accuracy').textContent = `${accuracy}%`;
   }
 
   function renderIssueTable(data) {
@@ -572,21 +622,12 @@
         responsive: true,
         plugins: {
           legend: { position: 'top' },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
-          },
-          datalabels: {
-            display: true, align: 'end', anchor: 'end', offset: 4,
-            formatter: value => `${value}%`, color: '#000', font: { size: 12 }
-          }
+          tooltip: { mode: 'index', intersect: false, callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } },
+          datalabels: { display: true, align: 'end', anchor: 'end', offset: 4, formatter: v => `${v}%`, color: '#000', font: { size: 12 } }
         },
         interaction: { mode: 'nearest', intersect: false },
-        scales: {
-          y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: val => val + '%' } },
-          x: { title: { display: true, text: 'Month' } }
-        }
+        scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: v => v + '%' } },
+                  x: { title: { display: true, text: 'Month' } } }
       },
       plugins: [ChartDataLabels]
     });
@@ -630,16 +671,7 @@
       hidden: false
     }));
 
-    datasets.unshift({
-      label: 'All Issues',
-      data: new Array(months.length).fill(null),
-      borderColor: '#000000',
-      backgroundColor: 'transparent',
-      fill: false,
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      hidden: false,
-    });
+    datasets.unshift({ label: 'All Issues', data: new Array(months.length).fill(null), borderColor: '#000000', backgroundColor: 'transparent', fill: false, pointRadius: 0, pointHoverRadius: 0, hidden: false });
 
     const ctx = document.getElementById('issueTrendChart').getContext('2d');
     if(issueTrendChartInstance) issueTrendChartInstance.destroy();
@@ -656,39 +688,22 @@
             onClick: (e, legendItem, legend) => {
               const chart = legend.chart;
               const index = legendItem.datasetIndex;
-
               if (index === 0) {
                 chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = false; });
                 chart.update();
               } else {
-                const selectedDataset = chart.data.datasets[index];
-                const isHidden = selectedDataset.hidden;
                 const visibleCount = chart.data.datasets.filter(ds => !ds.hidden && ds !== chart.data.datasets[0]).length;
-
-                if (isHidden || visibleCount !== 1) {
-                  chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = i !== index; });
-                } else {
-                  chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = false; });
-                }
+                chart.data.datasets.forEach((ds, i) => { if (i !== 0) ds.hidden = (visibleCount !== 1) ? i !== index : false; });
                 chart.update();
               }
             }
           },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` }
-          },
-          datalabels: {
-            display: true, align: 'end', anchor: 'end', offset: 4,
-            formatter: value => `${value}%`, color: '#000', font: { size: 12 }
-          }
+          tooltip: { mode: 'index', intersect: false, callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } },
+          datalabels: { display: true, align: 'end', anchor: 'end', offset: 4, formatter: v => `${v}%`, color: '#000', font: { size: 12 } }
         },
         interaction: { mode: 'nearest', intersect: false },
-        scales: {
-          y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: val => val + '%' } },
-          x: { title: { display: true, text: 'Month' } }
-        }
+        scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: 'Percentage (%)' }, ticks: { callback: v => v + '%' } },
+                  x: { title: { display: true, text: 'Month' } } }
       },
       plugins: [ChartDataLabels]
     });
@@ -774,9 +789,7 @@
     const header = document.getElementById('severityDetailsWeekHeader');
     const tbody = document.getElementById('severityDetailsWeekBody');
 
-    const weeks = Object.keys(weekRanges)
-      .sort((a, b) => weekRanges[b].start - weekRanges[a].start)
-      .map(key => weekRanges[key].name);
+    const weeks = Object.keys(weekRanges).sort((a, b) => weekRanges[b].start - weekRanges[a].start).map(key => weekRanges[key].name);
     const severitiesSet = new Set(data.map(d => d.Severity).filter(Boolean));
     const severities = Array.from(severitiesSet);
 
@@ -787,14 +800,10 @@
 
     data.forEach(row => {
       const rowDate = new Date(row['Date']);
-      const weekName = Object.keys(weekRanges).find(key =>
-        rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
-      );
-
+      const weekName = Object.keys(weekRanges).find(key => rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end);
       if (weekName) {
         const sev = row.Severity || 'Low';
         const formattedWeekName = weekRanges[weekName].name;
-
         totalsPerWeek[formattedWeekName] = (totalsPerWeek[formattedWeekName] || 0) + 1;
         if (!matrix[sev]) matrix[sev] = {};
         matrix[sev][formattedWeekName] = (matrix[sev][formattedWeekName] || 0) + 1;
@@ -828,14 +837,10 @@
 
     data.forEach(row => {
       const rowDate = new Date(row['Date']);
-      const weekName = Object.keys(weekRanges).find(key =>
-        rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end
-      );
-
+      const weekName = Object.keys(weekRanges).find(key => rowDate >= weekRanges[key].start && rowDate <= weekRanges[key].end);
       if (weekName) {
         const issue = row.Issue || 'Other';
         const formattedWeekName = weekRanges[weekName].name;
-
         totalsPerWeek[formattedWeekName] = (totalsPerWeek[formattedWeekName] || 0) + 1;
         if (!matrix[issue]) matrix[issue] = {};
         matrix[issue][formattedWeekName] = (matrix[issue][formattedWeekName] || 0) + 1;
@@ -875,11 +880,7 @@
       const valA = parseCell(a.children[index].textContent);
       const valB = parseCell(b.children[index].textContent);
       const isNumeric = !isNaN(valA) && !isNaN(valB);
-      if (isNumeric) {
-        return (isDesc ? valA - valB : valB - valA);
-      } else {
-        return isDesc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
+      return isNumeric ? (isDesc ? valA - valB : valB - valA) : (isDesc ? valA.localeCompare(valB) : valB.localeCompare(valA));
     });
 
     tbody.innerHTML = '';
@@ -902,23 +903,6 @@
   });
 
   window.onload = loadAndRender;
-
-  /* Minimal CSV export helper already referenced by your button */
-  function exportTableToCSV(filename) {
-    const rows = [...document.querySelectorAll('#spinTable tr')].map(tr =>
-      [...tr.querySelectorAll('th,td')].map(td => `"${td.innerText.replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-    const blob = new Blob([rows], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
 </script>
 
 </body>

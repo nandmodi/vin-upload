@@ -139,14 +139,11 @@
   <div>Total Received Spin: <span id="receivedSpin">0</span></div>
 </div>
 
+<!-- New summary section showing Total Received, Total QC Done, and Count of Issues Marked -->
 <div class="summary-section" id="summarySection">
-  <div class="summary-item">Total Spins <span class="summary-value" id="totalSpins">0</span></div>
-  <div class="summary-item">Unique Issues <span class="summary-value" id="uniqueIssues">0</span></div>
-  <div class="summary-item">Unique Enterprises <span class="summary-value" id="uniqueEnterprises">0</span></div>
-  <div class="summary-item">Blocker Issues <span class="summary-value" id="blockerIssues">0</span></div>
-  <div class="summary-item">High Severity <span class="summary-value" id="highIssues">0</span></div>
-  <div class="summary-item">Low Severity <span class="summary-value" id="lowIssues">0</span></div>
-  <div class="summary-item">Accuracy <span class="summary-value" id="accuracy">0%</span></div>
+  <div class="summary-item">Total Received <span class="summary-value" id="totalReceived">0</span></div>
+  <div class="summary-item">Total QC Done <span class="summary-value" id="totalQCDone">0</span></div>
+  <div class="summary-item">Count of Issues Marked <span class="summary-value" id="countIssuesMarked">0</span></div>
 </div>
 
 <!-- Dashboard Tab -->
@@ -428,6 +425,7 @@
     document.getElementById('markedSpin').textContent = new Set(filteredMarked.map(r => r['Spin_id'])).size;
     document.getElementById('receivedSpin').textContent = new Set(filteredReceived.map(r => r['Spin_id'])).size;
 
+    // Update the new summary section
     populateSummarySection(filteredMarked, filteredReceived);
 
     populateFilters(globalData);
@@ -446,29 +444,14 @@
   }
 
   function populateSummarySection(markedData, receivedData) {
-    document.getElementById('totalSpins').textContent = markedData.length;
-    document.getElementById('uniqueIssues').textContent = new Set(markedData.map(d => d.Issue)).size;
-    document.getElementById('uniqueEnterprises').textContent = new Set(markedData.map(d => d.Enterprise)).size;
-    document.getElementById('blockerIssues').textContent = markedData.filter(d => d.Severity === 'Blocker').length;
-    document.getElementById('highIssues').textContent = markedData.filter(d => d.Severity === 'High').length;
-    document.getElementById('lowIssues').textContent = markedData.filter(d => d.Severity === 'Low').length;
+    // Count unique Spin IDs for Total Received
+    document.getElementById('totalReceived').textContent = new Set(receivedData.map(r => r['Spin_id'])).size;
     
-    // Calculate accuracy
-    const accurateSpins = receivedData.filter(row => {
-      const issue = row['Issue'] || '';
-      const validationFailure = row['validation_failure_reason'] || '';
-      const vdpValidationFailure = row['vdp_validation_failure_reason'] || '';
-      
-      // Check if all are empty (or '{}')
-      const isIssueEmpty = !issue || issue.trim() === '' || issue === '{}';
-      const isValidationEmpty = !validationFailure || validationFailure.trim() === '' || validationFailure === '{}';
-      const isVdpValidationEmpty = !vdpValidationFailure || vdpValidationFailure.trim() === '' || vdpValidationFailure === '{}';
-      
-      return isIssueEmpty && isValidationEmpty && isVdpValidationEmpty;
-    });
+    // Count unique Spin IDs for Total QC Done (same as marked spin)
+    document.getElementById('totalQCDone').textContent = new Set(markedData.map(r => r['Spin_id'])).size;
     
-    const accuracy = receivedData.length ? ((accurateSpins.length / receivedData.length) * 100).toFixed(1) : 0;
-    document.getElementById('accuracy').textContent = `${accuracy}%`;
+    // Count of all issues marked (row count in marked data)
+    document.getElementById('countIssuesMarked').textContent = markedData.length;
   }
 
   function renderIssueTable(data) {

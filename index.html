@@ -115,6 +115,21 @@
   @media (max-width: 480px) {
     .header-bar { padding-left: 56px; }
   }
+
+  /* New styles for merged issues */
+  .issue-list {
+    text-align: left;
+    padding: 5px;
+  }
+  .issue-item {
+    margin: 3px 0;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  .severity-H { background-color: #ffebee; color: #c62828; font-weight: bold; }
+  .severity-Blocker { background-color: #ffcdd2; color: #b71c1c; font-weight: bold; }
+  .severity-L { background-color: #e8f5e8; color: #2e7d32; }
+  .severity-Lt { background-color: #e3f2fd; color: #1565c0; }
 </style>
 </head>
 <body>
@@ -188,7 +203,12 @@
     <div class="table-box">
       <table id="spinTable">
         <thead>
-          <tr><th>Spin ID</th><th>Issue</th><th>Severity</th><th>Enterprise</th></tr>
+          <tr>
+            <th>Spin ID</th>
+            <th>SKU ID</th>
+            <th>Issues & Severity</th>
+            <th>Enterprise</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -500,10 +520,65 @@
   function renderSpinTable(data) {
     const tbody = document.getElementById('spinTable').querySelector('tbody');
     tbody.innerHTML = '';
+    
+    // Group data by Spin ID
+    const spinGroups = {};
+    
     data.forEach(row => {
+      const spinId = row['Spin_id'];
+      if (!spinGroups[spinId]) {
+        spinGroups[spinId] = {
+          issues: [],
+          enterprise: row['Enterprise'] || 'Unknown',
+          spinUrl: row['Spin'] || '#',
+          skuId: row['SKU_ID'] || row['Product_ID'] || 'N/A' // Use SKU_ID or Product_ID if available
+        };
+      }
+      
+      // Add issue and severity to the group
+      spinGroups[spinId].issues.push({
+        issue: row['Issue'] || 'Other',
+        severity: row['Severity'] || 'Low'
+      });
+    });
+
+    // Create rows for each unique spin ID
+    Object.entries(spinGroups).forEach(([spinId, group]) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="clickable" onclick="document.getElementById('spinIframe').src='${row['Spin'] || '#'}'">${row['Spin_id']}</td>
-        <td>${row['Issue']}</td><td>${row['Severity']}</td><td>${row['Enterprise']}</td>`;
+      
+      // Spin ID cell - clickable
+      const spinIdCell = document.createElement('td');
+      spinIdCell.className = 'clickable';
+      spinIdCell.textContent = spinId;
+      spinIdCell.onclick = () => {
+        document.getElementById('spinIframe').src = group.spinUrl;
+      };
+
+      // SKU ID cell
+      const skuIdCell = document.createElement('td');
+      skuIdCell.textContent = group.skuId;
+
+      // Issues & Severity cell - merged
+      const issuesCell = document.createElement('td');
+      issuesCell.className = 'issue-list';
+      
+      // Create a list of issues with severity styling
+      group.issues.forEach(item => {
+        const issueDiv = document.createElement('div');
+        issueDiv.className = `issue-item severity-${item.severity.charAt(0)}`; // Use first char of severity
+        issueDiv.textContent = `${item.issue} (${item.severity})`;
+        issuesCell.appendChild(issueDiv);
+      });
+
+      // Enterprise cell
+      const enterpriseCell = document.createElement('td');
+      enterpriseCell.textContent = group.enterprise;
+
+      tr.appendChild(spinIdCell);
+      tr.appendChild(skuIdCell);
+      tr.appendChild(issuesCell);
+      tr.appendChild(enterpriseCell);
+      
       tbody.appendChild(tr);
     });
   }

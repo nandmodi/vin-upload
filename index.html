@@ -36,9 +36,27 @@
   .filters select, .filters button { padding: 6px 10px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
   .filters button { background-color: #007bff; color: white; border: none; }
   
-  /* Remove summary-bar styles */
+  /* Remove summary-section styles */
   
-  
+  .main-content { margin-top: 128px; padding: 0 20px; } /* Adjusted margin-top */
+  .chart-row { display: flex; gap: 20px; justify-content: space-between; margin: 20px 0; }
+  .chart-box.issue { flex: 2; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .chart-box.pie { flex: 1; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  .dual-table-row { display: flex; gap: 20px; margin-bottom: 20px; }
+  .dual-table-row .full-width-table { flex: 1; max-height: 400px; overflow-y: auto; background: #fff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; user-select: none; cursor: pointer; }
+  th { background: #f0f0f0; }
+  th.asc::after { content: " ▲"; }
+  th.desc::after { content: " ▼"; }
+  .bottom-row { display: flex; gap: 20px; }
+  .table-box { flex: 1; max-height: 320px; overflow-y: auto; }
+  .iframe-box { flex: 2; }
+  iframe { width: 100%; height: 300px; border: none; border-radius: 10px; }
+  .clickable { color: blue; text-decoration: underline; cursor: pointer; }
+  .chart-container { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); flex: 1; }
+  #severityTrendChart, #issueTrendChart { height: 300px; }
+  .summary-tables { margin-top: 30px; }
 
   /* Tab content show/hide */
   .tab-content { display: none; }
@@ -126,15 +144,6 @@
   <select id="productTypeFilter" data-label="Product_Type"><option value="">Product Type</option></select>
   <select id="qcFilter" data-label="QC"><option value="">QC</option></select>
   <button onclick="resetFilters()">Reset</button>
-</div>
-
-<!-- Removed summary-bar section -->
-
-<!-- New summary section showing Total Received, Total QC Done, and Count of Issues Marked -->
-<div class="summary-section" id="summarySection">
-  <div class="summary-item">Total Received <span class="summary-value" id="totalReceived">0</span></div>
-  <div class="summary-item">Total QC Done <span class="summary-value" id="totalQCDone">0</span></div>
-  <div class="summary-item">Count of Issues Marked <span class="summary-value" id="countIssuesMarked">0</span></div>
 </div>
 
 <!-- Dashboard Tab -->
@@ -269,7 +278,6 @@
   // Scroll handling for sticky filters
   window.addEventListener('scroll', function() {
     const filters = document.getElementById('filtersSection');
-    const summarySection = document.getElementById('summarySection');
     const header = document.querySelector('.header-bar');
     const tabs = document.querySelector('.tabs');
     
@@ -280,10 +288,8 @@
     // When scrolled past the original position, make filters sticky
     if (scrollTop > headerHeight + tabsHeight) {
       filters.classList.add('sticky');
-      summarySection.classList.add('sticky');
     } else {
       filters.classList.remove('sticky');
-      summarySection.classList.remove('sticky');
     }
   });
 
@@ -434,9 +440,6 @@
     const filteredMarked = globalData.filter(markedMatch);
     const filteredReceived = totalDataGlobal.filter(receivedMatch);
 
-    // Update the new summary section
-    populateSummarySection(filteredMarked, filteredReceived);
-
     populateFilters(globalData);
     renderIssueTable(filteredMarked);
     renderEnterpriseIssueTable(filteredMarked);
@@ -450,17 +453,6 @@
     renderIssueDetailsTable(filteredMarked);
     renderSeverityDetailsWeekTable(filteredMarked);
     renderIssueDetailsWeekTable(filteredMarked);
-  }
-
-  function populateSummarySection(markedData, receivedData) {
-    // Count unique Spin IDs for Total Received
-    document.getElementById('totalReceived').textContent = new Set(receivedData.map(r => r['Spin_id'])).size;
-    
-    // Count unique Spin IDs for Total QC Done (same as marked spin)
-    document.getElementById('totalQCDone').textContent = new Set(markedData.map(r => r['Spin_id'])).size;
-    
-    // Count of all issues marked (row count in marked data)
-    document.getElementById('countIssuesMarked').textContent = markedData.length;
   }
 
   function renderIssueTable(data) {
@@ -889,7 +881,6 @@
 
       const showFilters = id === 'dashboardTab';
       document.getElementById('filtersSection').style.display = showFilters ? 'flex' : 'none';
-      document.getElementById('summarySection').style.display = showFilters ? 'flex' : 'none';
     });
   });
 
@@ -898,4 +889,3 @@
 
 </body>
 </html>
-

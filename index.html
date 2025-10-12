@@ -38,46 +38,7 @@
   
   /* Remove summary-bar styles */
   
-  .summary-section { 
-    position: fixed; 
-    top: 128px; 
-    left: 0; 
-    right: 0; 
-    background: #fff; 
-    z-index: 9997; 
-    padding: 10px 20px; 
-    display: flex; 
-    gap: 20px; 
-    justify-content: center; 
-    border-bottom: 1px solid #ccc; 
-    font-weight: 600; 
-    user-select: none; 
-    transition: top 0.3s ease; /* Smooth transition for sticky effect */
-  }
-  .summary-section.sticky {
-    top: 40px; /* Adjust position when filters are sticky */
-  }
-  .summary-item { flex: 1; text-align: center; font-size: 16px; color: #333; }
-  .summary-value { font-size: 22px; color: #007bff; display: block; margin-top: 4px; }
-  .main-content { margin-top: 178px; padding: 0 20px; } /* Adjusted margin-top */
-  .chart-row { display: flex; gap: 20px; justify-content: space-between; margin: 20px 0; }
-  .chart-box.issue { flex: 2; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-  .chart-box.pie { flex: 1; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-  .dual-table-row { display: flex; gap: 20px; margin-bottom: 20px; }
-  .dual-table-row .full-width-table { flex: 1; max-height: 400px; overflow-y: auto; background: #fff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; user-select: none; cursor: pointer; }
-  th { background: #f0f0f0; }
-  th.asc::after { content: " ▲"; }
-  th.desc::after { content: " ▼"; }
-  .bottom-row { display: flex; gap: 20px; }
-  .table-box { flex: 1; max-height: 320px; overflow-y: auto; }
-  .iframe-box { flex: 2; }
-  iframe { width: 100%; height: 300px; border: none; border-radius: 10px; }
-  .clickable { color: blue; text-decoration: underline; cursor: pointer; }
-  .chart-container { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); flex: 1; }
-  #severityTrendChart, #issueTrendChart { height: 300px; }
-  .summary-tables { margin-top: 30px; }
+  
 
   /* Tab content show/hide */
   .tab-content { display: none; }
@@ -937,3 +898,4 @@
 
 </body>
 </html>
+

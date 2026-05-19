@@ -161,11 +161,11 @@
 
   <!-- API URL -->
   <div class="s-section">
-    <div class="s-title">API Gateway URL</div>
+    <div class="s-title">Spyne Token</div>
     <div class="field">
-      <label>Your Lambda API URL</label>
-      <input type="text" id="apiBase" placeholder="https://xxxxxx.execute-api.ap-south-1.amazonaws.com/prod" />
-      <div class="sub" id="apiHint">Enter URL then check connection</div>
+      <label>Enter your Spyne Bearer Token</label>
+      <input type="text" id="spyneToken" type="password" placeholder="eyJ..." />
+      <div class="sub" id="apiHint">Token is sent securely to backend only</div>
     </div>
     <button class="btn full" onclick="checkHealth()">⚡ Check connection</button>
   </div>
@@ -275,7 +275,7 @@ let tUploaded = 0, tSpyne = 0, tErrors = 0;
 
 /* ─── Health check ─── */
 async function checkHealth() {
-  const base = g('apiBase');
+  const base = 'https://ylyqnhitu9.execute-api.ap-south-1.amazonaws.com';
   const hint = document.getElementById('apiHint');
   const dot  = document.getElementById('apiDot');
   hint.textContent = 'Checking…'; hint.className = 'sub';
@@ -433,8 +433,8 @@ function updateRow(k) {
 
 /* ─── Pipeline ─── */
 async function runPipeline() {
-  const base = g('apiBase');
-  if (!base) { alert('Enter your API Gateway URL first.'); return; }
+  const base = 'https://ylyqnhitu9.execute-api.ap-south-1.amazonaws.com';
+  
 
   // Validate all bg_ids filled
   const missingBg = Object.keys(comboMap).filter(k => !comboMap[k].bgId);

@@ -423,6 +423,8 @@ function updateRow(k) {
   const spel = document.getElementById('sp-' + id);
   const dtel = document.getElementById('dt-' + id);
   if (s3el) s3el.innerHTML = mkBadge(r.s3Status, false);
+  const upel = document.getElementById('up-' + id);
+  if (upel) upel.textContent = `${r.s3Urls.length}/${vinMap[k].files.length}`;
   if (spel) spel.innerHTML = mkBadge(r.spyneStatus, true);
   if (dtel) {
     if (r.errorMsg)          dtel.innerHTML = `<span style="color:var(--red)">${esc(r.errorMsg.slice(0, 60))}</span>`;
@@ -454,17 +456,32 @@ async function runPipeline() {
 
   const vinKeys = Object.keys(vinMap);
 
-  /* ── Step 1: S3 uploads ── */
+  /* ── Step 1: S3 uploads (sequential with retry) ── */
   for (const k of vinKeys) {
     results[k].s3Status = 'running'; updateRow(k);
     const v = vinMap[k];
-    const settled = await Promise.allSettled(v.files.map(fi => uploadFile(base, fi)));
-    settled.forEach((res, i) => {
-      if (res.status === 'fulfilled') { results[k].s3Urls.push(res.value); tUploaded++; }
-      else { tErrors++; log('err', `[${v.vin}] ${v.files[i].file.name}: ${res.reason}`); }
-    });
+    for (const fi of v.files) {
+      let success = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const url = await uploadFile(base, fi);
+          results[k].s3Urls.push(url);
+          tUploaded++;
+          success = true;
+          break;
+        } catch(err) {
+          if (attempt === 3) {
+            tErrors++;
+            log('err', `[${v.vin}] ${fi.file.name}: ${err}`);
+          } else {
+            await new Promise(r => setTimeout(r, 500 * attempt));
+          }
+        }
+      }
+      updateRow(k); updateStats();
+    }
     results[k].s3Status = results[k].s3Urls.length === 0 ? 'error' : 'ok';
-    if (settled.some(s => s.status === 'rejected')) results[k].errorMsg = 'Some S3 uploads failed';
+    if (results[k].s3Urls.length < v.files.length) results[k].errorMsg = `${v.files.length - results[k].s3Urls.length} uploads failed`;
     updateRow(k); updateStats();
     log('ok', `[${v.vin}] S3: ${results[k].s3Urls.length}/${v.files.length} uploaded`);
   }

@@ -657,7 +657,19 @@ function disconnectSpyne() {
   log('info', 'Spyne disconnected');
 }
 
-window.addEventListener('load',()=>setTimeout(detectLogin,1000));
+window.addEventListener('load', () => {
+  // Check URL for token (when opened from Spyne bookmarklet)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken  = urlParams.get('token');
+  if (urlToken) {
+    applyManualToken(urlToken);
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    log('ok', 'Token received from Spyne ✅');
+  } else {
+    setTimeout(detectLogin, 500);
+  }
+});
 </script>
 </body>
 </html>

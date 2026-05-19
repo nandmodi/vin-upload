@@ -10,114 +10,109 @@
   .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 540px; width: 100%; }
   h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
   .sub { font-size: 14px; color: #8b90a0; margin-bottom: 28px; }
-  .step { display: flex; gap: 14px; margin-bottom: 24px; align-items: flex-start; }
-  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4f8ef7; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step { display: flex; gap: 14px; margin-bottom: 24px; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4f8ef7; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
   .step-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .step-content p { font-size: 13px; color: #8b90a0; line-height: 1.6; }
-  .bookmarklet-btn { display: inline-block; background: #4f8ef7; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: grab; border: 2px dashed rgba(255,255,255,0.3); margin-top: 8px; }
+  .bm { display: inline-block; background: #4f8ef7; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: grab; border: 2px dashed rgba(255,255,255,0.3); margin-top: 8px; }
   .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
-  .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
-  .success-box { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #3ecf8e; margin-top: 16px; }
-  .note { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f5a623; margin-top: 10px; }
+  .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 20px 0; }
+  .ok { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #3ecf8e; }
+  .warn { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f5a623; margin-top: 8px; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔗 Connect Spyne to Dashboard</h1>
-  <p class="sub">One-time setup — generates tokens for ALL teams automatically</p>
+  <p class="sub">One click generates tokens for ALL teams automatically</p>
 
   <div class="step">
     <div class="step-num">1</div>
     <div class="step-content">
-      <h3>Drag this button to your Chrome bookmarks bar</h3>
-      <a class="bookmarklet-btn" id="bm" href="">📤 Open Spyne Dashboard</a>
-      <p class="drag-hint">👆 Drag this to your bookmarks bar</p>
+      <h3>Drag to Chrome bookmarks bar</h3>
+      <a class="bm" id="bm" href="">📤 Open Spyne Dashboard</a>
+      <p class="drag-hint">👆 Drag to bookmarks bar</p>
     </div>
   </div>
 
   <div class="step">
     <div class="step-num">2</div>
     <div class="step-content">
-      <h3>Go to Spyne Console and login</h3>
-      <p>Open <strong style="color:#4f8ef7;">console.spyne.ai</strong> and login to your enterprise</p>
+      <h3>Login to Spyne Console</h3>
+      <p>Open <strong style="color:#4f8ef7">console.spyne.ai</strong> and login</p>
     </div>
   </div>
 
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-content">
-      <h3>Click the bookmark</h3>
-      <p>While on Spyne → click <strong>"📤 Open Spyne Dashboard"</strong></p>
-      <p style="margin-top:4px;">It will automatically:</p>
-      <p>✅ Get all teams for your enterprise</p>
-      <p>✅ Generate API token for each team</p>
-      <p>✅ Open dashboard with all tokens ready</p>
+      <h3>Click the bookmark on Spyne page</h3>
+      <p>Auto-generates tokens for all teams → opens dashboard ✅</p>
     </div>
   </div>
 
   <div class="divider"></div>
-
-  <div class="success-box">
-    ✅ One click = tokens for ALL teams generated automatically!
-  </div>
-  <div class="note">
-    ⏱ May take 10-20 seconds for enterprises with many teams
-  </div>
+  <div class="ok">✅ One click = all team tokens ready!</div>
+  <div class="warn">⏱ Takes 10-30 seconds for many teams</div>
 </div>
 
 <script>
-var dashUrl = 'https://nandmodi.github.io/vin-upload/';
+var DASH = 'https://nandmodi.github.io/vin-upload/';
 
-var code = 'javascript:(function(){' +
-  'var loginTok=localStorage.getItem("defaultBearerToken");' +
-  'if(!loginTok){alert("Please login to Spyne first!");return;}' +
-  'var uid="";' +
-  'try{var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");uid=ud.userId||ud._id||"";}catch(e){}' +
-  // Get enterprise from URL
-  'var url=window.location.href;' +
-  'var entMatch=url.match(/enterprise_id=([^&?]+)/);' +
-  'var ent=entMatch?decodeURIComponent(entMatch[1]):"";' +
-  'if(!ent){' +
-    'try{var rs=JSON.parse(localStorage.getItem("reduxState")||"{}");' +
-    'ent=rs.enterpriseId||rs.enterprise_id||"";}catch(e){}' +
-  '}' +
-  'if(!ent){alert("Could not detect enterprise. Please navigate to a team page first.");return;}' +
-  // Show loading alert
-  'var overlay=document.createElement("div");' +
-  'overlay.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";' +
-  'overlay.innerHTML="<div style=\'color:white;font-size:18px;font-weight:600;\'>🔗 Generating tokens for all teams…</div><div id=\'spyne-progress\' style=\'color:#8b90a0;font-size:14px;\'>Fetching team list…</div>";' +
-  'document.body.appendChild(overlay);' +
-  // Fetch all teams
-  'var teamXhr=new XMLHttpRequest();' +
-  'teamXhr.open("GET","https://api.spyne.ai/console/v1/enterprise/get-team-list?enterpriseId="+ent,false);' +
-  'teamXhr.setRequestHeader("Authorization",loginTok);' +
-  'teamXhr.send();' +
-  'var teamData=JSON.parse(teamXhr.responseText);' +
-  'var teams=teamData.data&&teamData.data.teamDetails?teamData.data.teamDetails:[];' +
-  'if(!teams.length){document.body.removeChild(overlay);alert("No teams found.");return;}' +
-  // Generate token for each team
-  'var tokens={};' +
-  'var prog=document.getElementById("spyne-progress");' +
-  'for(var i=0;i<teams.length;i++){' +
-    'var t=teams[i];' +
-    'if(prog)prog.textContent="Generating token "+（i+1)+" of "+teams.length+": "+t.team_name;' +
-    'try{' +
-      'var xhr=new XMLHttpRequest();' +
-      'xhr.open("POST","https://api.spyne.ai/user-management/v1/token/generate",false);' +
-      'xhr.setRequestHeader("Content-Type","application/json");' +
-      'xhr.setRequestHeader("Authorization",loginTok);' +
-      'xhr.send(JSON.stringify({enterpriseId:ent,teamId:t.team_id,userId:uid,name:"auto-"+Date.now()}));' +
-      'var resp=JSON.parse(xhr.responseText);' +
-      'if(resp.data&&resp.data.encoded){tokens[ent+"/"+t.team_id]=resp.data.encoded;}' +
-    '}catch(e){}' +
-  '}' +
-  'document.body.removeChild(overlay);' +
-  // Open dashboard with all tokens
-  'var dashWithTokens="' + dashUrl + '?loginToken="+encodeURIComponent(loginTok)+"&uid="+encodeURIComponent(uid)+"&ent="+encodeURIComponent(ent)+"&allTokens="+encodeURIComponent(JSON.stringify(tokens));' +
-  'window.open(dashWithTokens,"_blank");' +
-'})();';
+function buildBookmarklet() {
+  var fn = function() {
+    var DASHBOARD_URL = 'PLACEHOLDER_DASH';
+    var tok = localStorage.getItem('defaultBearerToken');
+    if (!tok) { alert('Please login to Spyne first!'); return; }
+    var uid = '';
+    try { var ud = JSON.parse(localStorage.getItem('userDetails') || '{}'); uid = ud.userId || ud._id || ''; } catch(e) {}
+    // Get enterprise from URL
+    var ent = '';
+    var m = window.location.href.match(/enterprise_id=([^&?#]+)/);
+    if (m) ent = decodeURIComponent(m[1]);
+    if (!ent) { try { var rs = JSON.parse(localStorage.getItem('reduxState') || '{}'); ent = rs.enterpriseId || ''; } catch(e) {} }
+    if (!ent) { alert('Cannot detect enterprise. Please go to a team page first.'); return; }
+    // Show overlay
+    var ov = document.createElement('div');
+    ov.id = 'spyne-ov';
+    ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;';
+    ov.innerHTML = '<div style="color:#fff;font-size:20px;font-weight:600;">🔗 Connecting Spyne Dashboard</div><div id="sp-prog" style="color:#8b90a0;font-size:14px;">Fetching teams…</div>';
+    document.body.appendChild(ov);
+    var prog = document.getElementById('sp-prog');
+    // Get teams
+    var tx = new XMLHttpRequest();
+    tx.open('GET', 'https://api.spyne.ai/console/v1/enterprise/get-team-list?enterpriseId=' + ent, false);
+    tx.setRequestHeader('Authorization', tok);
+    tx.send();
+    var td = JSON.parse(tx.responseText);
+    var teams = (td.data && td.data.teamDetails) ? td.data.teamDetails : [];
+    if (!teams.length) { document.body.removeChild(ov); alert('No teams found.'); return; }
+    // Generate tokens for all teams
+    var tokens = {};
+    for (var i = 0; i < teams.length; i++) {
+      var t = teams[i];
+      if (prog) prog.textContent = 'Generating token ' + (i+1) + ' of ' + teams.length + ': ' + t.team_name;
+      try {
+        var rx = new XMLHttpRequest();
+        rx.open('POST', 'https://api.spyne.ai/user-management/v1/token/generate', false);
+        rx.setRequestHeader('Content-Type', 'application/json');
+        rx.setRequestHeader('Authorization', tok);
+        rx.send(JSON.stringify({ enterpriseId: ent, teamId: t.team_id, userId: uid, name: 'auto-' + Date.now() }));
+        var rsp = JSON.parse(rx.responseText);
+        if (rsp.data && rsp.data.encoded) tokens[ent + '/' + t.team_id] = rsp.data.encoded;
+      } catch(e) {}
+    }
+    document.body.removeChild(ov);
+    var count = Object.keys(tokens).length;
+    if (count === 0) { alert('No tokens generated. Check your login.'); return; }
+    var url = DASHBOARD_URL + '?loginToken=' + encodeURIComponent(tok) + '&uid=' + encodeURIComponent(uid) + '&ent=' + encodeURIComponent(ent) + '&allTokens=' + encodeURIComponent(JSON.stringify(tokens));
+    window.open(url, '_blank');
+  };
+  var code = fn.toString().replace('PLACEHOLDER_DASH', DASH);
+  return 'javascript:(' + code + ')();';
+}
 
-document.getElementById('bm').href = code;
+document.getElementById('bm').href = buildBookmarklet();
 </script>
 </body>
 </html>

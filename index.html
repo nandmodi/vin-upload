@@ -686,13 +686,23 @@ window.addEventListener('load', () => {
     document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
     log('ok', 'Spyne connected via bookmark · user: ' + uid);
 
-    // Store API token for this combo if provided
+    // Store all tokens if provided
+    const allTokensStr = urlParams.get('allTokens');
+    if (allTokensStr) {
+      try {
+        const allTokens = JSON.parse(allTokensStr);
+        localStorage.setItem('spyneApiTokens', JSON.stringify(allTokens));
+        const count = Object.keys(allTokens).length;
+        log('ok', `${count} team tokens stored automatically ✅`);
+      } catch(e) {}
+    }
+
+    // Store single API token if provided
     if (urlApiToken && urlEnt && urlTeam) {
-      const comboKey = urlEnt + '/' + urlTeam;
       const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
-      stored[comboKey] = urlApiToken;
+      stored[urlEnt + '/' + urlTeam] = urlApiToken;
       localStorage.setItem('spyneApiTokens', JSON.stringify(stored));
-      log('ok', 'API token stored for ' + comboKey);
+      log('ok', 'API token stored for ' + urlEnt + '/' + urlTeam);
     }
 
     window.history.replaceState({}, '', window.location.pathname);

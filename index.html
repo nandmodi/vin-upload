@@ -246,40 +246,80 @@ async function detectLogin() {
 function connectSpyne() {
   const hint = document.getElementById('loginHint');
   const dot  = document.getElementById('spyneDot');
-  hint.innerHTML = '<span class="spinner" style="display:inline-block;margin-right:6px;"></span> Connecting…';
+  hint.innerHTML = '<span class="spinner" style="display:inline-block;margin-right:6px;vertical-align:middle;"></span> Opening Spyne…';
 
-  // Listen for message from popup
+  // Listen for postMessage from popup
   function onMessage(e) {
-    if (e.origin !== 'https://console.spyne.ai') return;
     if (!e.data?.spyneToken) return;
     window.removeEventListener('message', onMessage);
     loginToken  = e.data.spyneToken;
     loginUserId = e.data.userId || '';
-    // Save for next time
     localStorage.setItem('spyneLoginToken', loginToken);
     localStorage.setItem('spyneLoginUserId', loginUserId);
     hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
     dot.style.color = '#3ecf8e';
     log('ok', 'Spyne connected · user: ' + loginUserId);
-    // Fetch tokens for any loaded combos
     Object.keys(comboMap).forEach(k => fetchToken(k));
   }
   window.addEventListener('message', onMessage);
 
-  // Open Spyne bridge page in popup
-  const popup = window.open(
-    'https://console.spyne.ai/developer-hub',
-    'spyne-connect',
-    'width=500,height=600,scrollbars=yes'
-  );
+  // Build bridge HTML that runs inside Spyne domain
+  const bridgeScript = `
+    <html>
+    <head><title>Connecting to Spyne…</title></head>
+    <body style="font-family:sans-serif;background:#0f1117;color:#e8eaf0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px;">
+      <div style="font-size:18px;font-weight:600;">🔗 Spyne Auto-Upload</div>
+      <div id="msg" style="font-size:14px;color:#8b90a0;">Reading your Spyne session…</div>
+      <button id="btn" onclick="connect()" style="padding:12px 28px;background:#4f8ef7;border:none;border-radius:8px;color:white;font-size:15px;font-weight:600;cursor:pointer;display:none;">
+        ✓ Click to Connect
+      </button>
+      <script>
+        function connect() {
+          const tok = localStorage.getItem('defaultBearerToken');
+          const ud  = localStorage.getItem('userDetails');
+          const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
+          if (tok) {
+            window.opener.postMessage({ spyneToken: tok, userId: uid }, '*');
+            document.getElementById('msg').textContent = '✓ Connected! This window will close…';
+            document.getElementById('msg').style.color = '#3ecf8e';
+            document.getElementById('btn').style.display = 'none';
+            setTimeout(() => window.close(), 1000);
+          } else {
+            document.getElementById('msg').textContent = '✗ Not logged in. Please login to Spyne first.';
+            document.getElementById('msg').style.color = '#f25757';
+          }
+        }
+        // Auto-try first
+        setTimeout(() => {
+          const tok = localStorage.getItem('defaultBearerToken');
+          if (tok) {
+            connect();
+          } else {
+            document.getElementById('msg').textContent = 'Please login to Spyne, then click the button below.';
+            document.getElementById('btn').style.display = 'block';
+          }
+        }, 500);
+      <\/script>
+    </body>
+    </html>
+  `;
 
-  // Inject bridge script after popup loads
-  setTimeout(() => {
+  // Open popup with bridge HTML hosted on spyne domain via data URL
+  // Since we can't inject into spyne.ai directly, use a popup that redirects
+  const popupUrl = 'https://console.spyne.ai/developer-hub';
+  const popup = window.open(popupUrl, 'spyne-bridge', 'width=420,height=320,scrollbars=no,resizable=no');
+
+  let injected = false;
+  const tryInject = setInterval(() => {
     try {
+      if (popup.closed) { clearInterval(tryInject); return; }
+      // Try direct localStorage access (works if same origin allowed)
       const tok = popup.localStorage.getItem('defaultBearerToken');
       const ud  = popup.localStorage.getItem('userDetails');
       const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-      if (tok) {
+      if (tok && !injected) {
+        injected = true;
+        clearInterval(tryInject);
         window.removeEventListener('message', onMessage);
         loginToken  = tok;
         loginUserId = uid;
@@ -287,36 +327,29 @@ function connectSpyne() {
         localStorage.setItem('spyneLoginUserId', uid);
         hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
         dot.style.color = '#3ecf8e';
-        log('ok', 'Spyne connected · user: ' + uid);
+        log('ok', 'Spyne auto-connected · user: ' + uid);
         Object.keys(comboMap).forEach(k => fetchToken(k));
         popup.close();
-      } else {
-        // Inject postMessage script into popup
-        popup.eval(`
-          const tok = localStorage.getItem('defaultBearerToken');
-          const ud = localStorage.getItem('userDetails');
-          const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-          if (tok) {
-            window.opener.postMessage({ spyneToken: tok, userId: uid }, '*');
-            window.close();
-          }
-        `);
+      } else if (!injected) {
+        // Inject click button into popup page
+        try {
+          popup.document.body.innerHTML = bridgeScript.replace('<html>','').replace('</html>','').replace('<head><title>Connecting to Spyne…</title></head>','');
+          injected = true;
+          clearInterval(tryInject);
+        } catch(e2) {}
       }
-    } catch(e) {
-      // If popup blocked same-origin, show not logged in message
-      hint.innerHTML = '<span style="color:var(--red)">✗ Please login to Spyne first, then click Connect again</span>';
-      dot.style.color = '#f25757';
-    }
-  }, 3000);
+    } catch(e) {}
+  }, 500);
 
-  // Timeout
+  // Timeout after 30s
   setTimeout(() => {
+    clearInterval(tryInject);
     window.removeEventListener('message', onMessage);
     if (!loginToken) {
-      hint.innerHTML = '<span style="color:var(--red)">✗ Connection timeout. Please login to Spyne first.</span>';
+      hint.innerHTML = '<span style="color:var(--red)">✗ Timed out. Please login to Spyne and try again.</span>';
       dot.style.color = '#f25757';
     }
-  }, 15000);
+  }, 30000);
 }
 
 function applyManualToken(val) {

@@ -524,9 +524,9 @@ async function callSpyne(base, vinData, imageUrls, bgId) {
   const res = await fetch(base + '/spyne-process', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: JSON.stringify({ spyneToken: g('spyneToken'),
       vin:          vinData.vin,
-      dealerId:     vinData.ent,
+      dealerId: vinData.team,
       imageUrls,
       backgroundId: bgId
     })

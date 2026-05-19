@@ -526,7 +526,7 @@ async function callSpyne(base, vinData, imageUrls, bgId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ spyneToken: g('spyneToken'),
       vin:          vinData.vin,
-      dealerId: vinData.team,
+      
       imageUrls,
       backgroundId: bgId
     })

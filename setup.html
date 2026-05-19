@@ -48,7 +48,7 @@
     <div class="step-num">3</div>
     <div class="step-content">
       <h3>Click the bookmark while on Spyne</h3>
-      <p>While on any Spyne page, click <strong>"📤 Open Spyne Dashboard"</strong> in your bookmarks bar → Dashboard opens already connected! ✅</p>
+      <p>While on any Spyne page, click <strong>"📤 Open Spyne Dashboard"</strong> → Dashboard opens already connected! ✅</p>
     </div>
   </div>
 
@@ -63,10 +63,19 @@
 var dashUrl = 'https://nandmodi.github.io/vin-upload/';
 var code = 'javascript:(function(){' +
   'var tok=localStorage.getItem("defaultBearerToken");' +
-  'var ud=localStorage.getItem("userDetails");' +
-  'var uid="";' +
-  'try{uid=JSON.parse(ud).userId||JSON.parse(ud)._id||"";}catch(e){}' +
   'if(!tok){alert("Please login to Spyne first!");return;}' +
+  'var uid="";' +
+  'try{' +
+    'var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");' +
+    'uid=ud.userId||ud._id||ud.id||ud.user_id||"";' +
+  '}catch(e){}' +
+  'if(!uid){' +
+    'try{' +
+      'var b64=tok.replace("Bearer ","").split(".")[1];' +
+      'var pl=JSON.parse(atob(b64));' +
+      'uid=pl.userId||pl.user_id||pl.id||"";' +
+    '}catch(e){}' +
+  '}' +
   'window.open("' + dashUrl + '?token="+encodeURIComponent(tok)+"&uid="+encodeURIComponent(uid),"_blank");' +
 '})();';
 document.getElementById('bm').href = code;

@@ -15,7 +15,6 @@
   .step-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .step-content p { font-size: 13px; color: #8b90a0; line-height: 1.6; }
   .bookmarklet-btn { display: inline-block; background: #4f8ef7; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: grab; border: 2px dashed rgba(255,255,255,0.3); margin-top: 8px; }
-  .bookmarklet-btn:hover { background: #6ba0f9; }
   .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
   .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
   .success-box { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #3ecf8e; margin-top: 16px; }
@@ -30,7 +29,6 @@
     <div class="step-num">1</div>
     <div class="step-content">
       <h3>Drag this button to your Chrome bookmarks bar</h3>
-      <p>Hold and drag the button below to your Chrome bookmarks toolbar</p>
       <a class="bookmarklet-btn" id="bm" href="">📤 Open Spyne Dashboard</a>
       <p class="drag-hint">👆 Drag this to your bookmarks bar</p>
     </div>
@@ -40,7 +38,7 @@
     <div class="step-num">2</div>
     <div class="step-content">
       <h3>Open Spyne Console and login</h3>
-      <p>Go to <strong style="color:#4f8ef7;">console.spyne.ai</strong> and make sure you're logged in</p>
+      <p>Go to <strong style="color:#4f8ef7;">console.spyne.ai</strong> — make sure you're logged in to the correct enterprise & team</p>
     </div>
   </div>
 
@@ -48,29 +46,48 @@
     <div class="step-num">3</div>
     <div class="step-content">
       <h3>Click the bookmark while on Spyne</h3>
-      <p>While on any Spyne page, click <strong>"📤 Open Spyne Dashboard"</strong> → Dashboard opens already connected! ✅</p>
+      <p>The bookmark reads your login + generates API token automatically → opens dashboard connected ✅</p>
     </div>
   </div>
 
   <div class="divider"></div>
 
   <div class="success-box">
-    ✅ After setup, just click the bookmark anytime — no login needed!
+    ✅ Token is generated directly from Spyne — works for all teams!
   </div>
 </div>
 
 <script>
 var dashUrl = 'https://nandmodi.github.io/vin-upload/';
+
+// Bookmarklet that:
+// 1. Reads login token from Spyne localStorage
+// 2. Calls Spyne API directly to generate API token for current enterprise+team
+// 3. Opens dashboard with all tokens
 var code = 'javascript:(function(){' +
-  'var tok=localStorage.getItem("defaultBearerToken");' +
-  'if(!tok){alert("Please login to Spyne first!");return;}' +
+  'var loginTok=localStorage.getItem("defaultBearerToken");' +
+  'if(!loginTok){alert("Please login to Spyne first!");return;}' +
   'var uid="";' +
-  'try{' +
-    'var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");' +
-    'uid=ud.userId||ud._id||ud.id||"";' +
-  '}catch(e){}' +
-  'window.open("' + dashUrl + '?token="+encodeURIComponent(tok)+"&uid="+encodeURIComponent(uid),"_blank");' +
+  'try{var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");uid=ud.userId||ud._id||"";}catch(e){}' +
+  // Get current enterprise+team from URL
+  'var url=window.location.href;' +
+  'var entMatch=url.match(/enterprise_id=([^&]+)/);' +
+  'var teamMatch=url.match(/team_id=([^&]+)/);' +
+  'var ent=entMatch?decodeURIComponent(entMatch[1]):"";' +
+  'var team=teamMatch?decodeURIComponent(teamMatch[1]).replace(/[\\[\\]]/g,""):"";' +
+  // Generate API token directly from Spyne
+  'var xhr=new XMLHttpRequest();' +
+  'xhr.open("POST","https://api.spyne.ai/user-management/v1/token/generate",false);' +
+  'xhr.setRequestHeader("Content-Type","application/json");' +
+  'xhr.setRequestHeader("Authorization",loginTok);' +
+  'xhr.send(JSON.stringify({enterpriseId:ent,teamId:team,userId:uid,name:"auto-"+Date.now()}));' +
+  'var resp=JSON.parse(xhr.responseText);' +
+  'var apiToken=resp.data&&resp.data.encoded?resp.data.encoded:"";' +
+  'if(!apiToken){alert("Could not generate API token. Check enterprise/team.");return;}' +
+  // Open dashboard with all data
+  'window.open("' + dashUrl + '?loginToken="+encodeURIComponent(loginTok)+"&uid="+encodeURIComponent(uid)+"&ent="+encodeURIComponent(ent)+"&team="+encodeURIComponent(team)+"&apiToken="+encodeURIComponent(apiToken),"_blank");' +
 '})();';
+
 document.getElementById('bm').href = code;
 </script>
 </body>

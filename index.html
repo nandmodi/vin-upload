@@ -236,6 +236,7 @@ async function detectLogin() {
     dot.style.color = '#3ecf8e';
     log('ok', 'Spyne connected · user: ' + loginUserId);
     return;
+    // Note: API tokens are generated fresh per session
   }
 
   hint.textContent = 'Not connected';
@@ -682,6 +683,7 @@ window.addEventListener('load', () => {
     loginUserId = uid;
     localStorage.setItem('spyneLoginToken', urlToken);
     localStorage.setItem('spyneLoginUserId', uid);
+    localStorage.removeItem('spyneApiTokens'); // Clear old tokens on fresh connect
     document.getElementById('spyneDot').style.color = '#3ecf8e';
     document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
     log('ok', 'Spyne connected via bookmark · user: ' + uid);

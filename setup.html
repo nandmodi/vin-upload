@@ -67,15 +67,8 @@ var code = 'javascript:(function(){' +
   'var uid="";' +
   'try{' +
     'var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");' +
-    'uid=ud.userId||ud._id||ud.id||ud.user_id||"";' +
+    'uid=ud.userId||ud._id||ud.id||"";' +
   '}catch(e){}' +
-  'if(!uid){' +
-    'try{' +
-      'var b64=tok.replace("Bearer ","").split(".")[1];' +
-      'var pl=JSON.parse(atob(b64));' +
-      'uid=pl.userId||pl.user_id||pl.id||"";' +
-    '}catch(e){}' +
-  '}' +
   'window.open("' + dashUrl + '?token="+encodeURIComponent(tok)+"&uid="+encodeURIComponent(uid),"_blank");' +
 '})();';
 document.getElementById('bm').href = code;

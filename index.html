@@ -223,6 +223,18 @@ async function detectLogin() {
   hint.textContent = 'Detecting…';
   hint.className = 'sub';
 
+  // Check saved token first
+  const saved = localStorage.getItem('spyneLoginToken');
+  const savedUser = localStorage.getItem('spyneLoginUserId');
+  if (saved) {
+    loginToken  = saved;
+    loginUserId = savedUser || '';
+    hint.innerHTML = '<span style="color:var(--green)">✓ Auto-logged in · ' + loginUserId + '</span>';
+    dot.style.color = '#3ecf8e';
+    log('ok', 'Using saved Spyne login · user: ' + loginUserId);
+    return;
+  }
+
   // Try iframe approach
   try {
     const iframe = document.createElement('iframe');
@@ -249,12 +261,17 @@ async function detectLogin() {
 
   // Fallback: manual paste
   hint.innerHTML = `
-    <span style="color:var(--amber);">Auto-detect failed. Paste login token:</span>
+    <span style="color:var(--amber);">Paste Spyne login token once:</span>
     <input type="password" placeholder="Bearer eyJ..." id="manualTok"
-      style="width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:6px 8px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;"
-      oninput="applyManualToken(this.value)" />
-    <div style="font-size:10px;color:var(--hint);margin-top:3px;">
-      F12 → Console → <code style="color:var(--blue);">localStorage.getItem('defaultBearerToken')</code>
+      style="width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:6px 8px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;" />
+    <button onclick="applyManualToken(document.getElementById('manualTok').value)" 
+      style="margin-top:6px;width:100%;padding:7px;background:var(--blue);border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">
+      ✓ Save Token
+    </button>
+    <div style="font-size:10px;color:var(--hint);margin-top:4px;">
+      Get from Spyne → F12 → Console:<br/>
+      <code style="color:var(--blue);font-size:10px;">localStorage.getItem('defaultBearerToken')</code><br/>
+      <span style="color:var(--green);">✓ Saved automatically for next visits</span>
     </div>`;
   dot.style.color = '#f5a623';
 }
@@ -268,8 +285,12 @@ function applyManualToken(val) {
     const data = JSON.parse(atob(b64));
     loginUserId = data.userId || data.user_id || '';
   } catch(e) {}
+  // Save to localStorage for next time
+  localStorage.setItem('spyneLoginToken', val);
+  localStorage.setItem('spyneLoginUserId', loginUserId);
   document.getElementById('spyneDot').style.color = '#3ecf8e';
-  log('ok', `Token set · user: ${loginUserId}`);
+  document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Logged in · saved for next time</span>';
+  log('ok', `Token set & saved · user: ${loginUserId}`);
   // Re-fetch tokens for existing combos
   Object.keys(comboMap).forEach(k => fetchToken(k));
 }

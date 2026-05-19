@@ -7,112 +7,70 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f1117; color: #e8eaf0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 540px; width: 100%; }
+  .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 520px; width: 100%; }
   h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
   .sub { font-size: 14px; color: #8b90a0; margin-bottom: 28px; }
-  .step { display: flex; gap: 14px; margin-bottom: 24px; }
-  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4f8ef7; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-  .step-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-  .step-content p { font-size: 13px; color: #8b90a0; line-height: 1.6; }
+  .step { display: flex; gap: 14px; margin-bottom: 22px; }
+  .num { width: 28px; height: 28px; border-radius: 50%; background: #4f8ef7; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .sc h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .sc p { font-size: 13px; color: #8b90a0; line-height: 1.6; }
   .bm { display: inline-block; background: #4f8ef7; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: grab; border: 2px dashed rgba(255,255,255,0.3); margin-top: 8px; }
-  .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
+  .hint { font-size: 12px; color: #555b6e; margin-top: 5px; }
   .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 20px 0; }
   .ok { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #3ecf8e; }
-  .warn { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f5a623; margin-top: 8px; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔗 Connect Spyne to Dashboard</h1>
-  <p class="sub">One click generates tokens for ALL teams automatically</p>
+  <p class="sub">One-time setup — 30 seconds</p>
 
   <div class="step">
-    <div class="step-num">1</div>
-    <div class="step-content">
+    <div class="num">1</div>
+    <div class="sc">
       <h3>Drag to Chrome bookmarks bar</h3>
       <a class="bm" id="bm" href="">📤 Open Spyne Dashboard</a>
-      <p class="drag-hint">👆 Drag to bookmarks bar</p>
+      <p class="hint">👆 Hold and drag to bookmarks bar</p>
     </div>
   </div>
 
   <div class="step">
-    <div class="step-num">2</div>
-    <div class="step-content">
+    <div class="num">2</div>
+    <div class="sc">
       <h3>Login to Spyne Console</h3>
       <p>Open <strong style="color:#4f8ef7">console.spyne.ai</strong> and login</p>
     </div>
   </div>
 
   <div class="step">
-    <div class="step-num">3</div>
-    <div class="step-content">
-      <h3>Click the bookmark on Spyne page</h3>
-      <p>Auto-generates tokens for all teams → opens dashboard ✅</p>
+    <div class="num">3</div>
+    <div class="sc">
+      <h3>Click bookmark while on Spyne</h3>
+      <p>Dashboard opens automatically connected ✅</p>
     </div>
   </div>
 
   <div class="divider"></div>
-  <div class="ok">✅ One click = all team tokens ready!</div>
-  <div class="warn">⏱ Takes 10-30 seconds for many teams</div>
+  <div class="ok">✅ Tokens generated fresh every time — always up to date!</div>
 </div>
 
 <script>
 var DASH = 'https://nandmodi.github.io/vin-upload/';
 
-function buildBookmarklet() {
-  var fn = function() {
-    var DASHBOARD_URL = 'PLACEHOLDER_DASH';
-    var tok = localStorage.getItem('defaultBearerToken');
-    if (!tok) { alert('Please login to Spyne first!'); return; }
-    var uid = '';
-    try { var ud = JSON.parse(localStorage.getItem('userDetails') || '{}'); uid = ud.userId || ud._id || ''; } catch(e) {}
-    // Get enterprise from URL
-    var ent = '';
-    var m = window.location.href.match(/enterprise_id=([^&?#]+)/);
-    if (m) ent = decodeURIComponent(m[1]);
-    if (!ent) { try { var rs = JSON.parse(localStorage.getItem('reduxState') || '{}'); ent = rs.enterpriseId || ''; } catch(e) {} }
-    if (!ent) { alert('Cannot detect enterprise. Please go to a team page first.'); return; }
-    // Show overlay
-    var ov = document.createElement('div');
-    ov.id = 'spyne-ov';
-    ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;';
-    ov.innerHTML = '<div style="color:#fff;font-size:20px;font-weight:600;">🔗 Connecting Spyne Dashboard</div><div id="sp-prog" style="color:#8b90a0;font-size:14px;">Fetching teams…</div>';
-    document.body.appendChild(ov);
-    var prog = document.getElementById('sp-prog');
-    // Get teams
-    var tx = new XMLHttpRequest();
-    tx.open('GET', 'https://api.spyne.ai/console/v1/enterprise/get-team-list?enterpriseId=' + ent, false);
-    tx.setRequestHeader('Authorization', tok);
-    tx.send();
-    var td = JSON.parse(tx.responseText);
-    var teams = (td.data && td.data.teamDetails) ? td.data.teamDetails : [];
-    if (!teams.length) { document.body.removeChild(ov); alert('No teams found.'); return; }
-    // Generate tokens for all teams
-    var tokens = {};
-    for (var i = 0; i < teams.length; i++) {
-      var t = teams[i];
-      if (prog) prog.textContent = 'Generating token ' + (i+1) + ' of ' + teams.length + ': ' + t.team_name;
-      try {
-        var rx = new XMLHttpRequest();
-        rx.open('POST', 'https://api.spyne.ai/user-management/v1/token/generate', false);
-        rx.setRequestHeader('Content-Type', 'application/json');
-        rx.setRequestHeader('Authorization', tok);
-        rx.send(JSON.stringify({ enterpriseId: ent, teamId: t.team_id, userId: uid, name: 'auto-' + Date.now() }));
-        var rsp = JSON.parse(rx.responseText);
-        if (rsp.data && rsp.data.encoded) tokens[ent + '/' + t.team_id] = rsp.data.encoded;
-      } catch(e) {}
-    }
-    document.body.removeChild(ov);
-    var count = Object.keys(tokens).length;
-    if (count === 0) { alert('No tokens generated. Check your login.'); return; }
-    var url = DASHBOARD_URL + '?loginToken=' + encodeURIComponent(tok) + '&uid=' + encodeURIComponent(uid) + '&ent=' + encodeURIComponent(ent) + '&allTokens=' + encodeURIComponent(JSON.stringify(tokens));
-    window.open(url, '_blank');
-  };
-  var code = fn.toString().replace('PLACEHOLDER_DASH', DASH);
-  return 'javascript:(' + code + ')();';
-}
+var fn = function() {
+  var DASH_URL = '%%DASH%%';
+  var tok = localStorage.getItem('defaultBearerToken');
+  if (!tok) { alert('Please login to Spyne first!'); return; }
+  var uid = '';
+  try {
+    var ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
+    uid = ud.userId || ud._id || '';
+  } catch(e) {}
+  window.open(DASH_URL + '?loginToken=' + encodeURIComponent(tok) + '&uid=' + encodeURIComponent(uid), '_blank');
+};
 
-document.getElementById('bm').href = buildBookmarklet();
+var code = 'javascript:(' + fn.toString().replace('%%DASH%%', DASH) + ')();';
+document.getElementById('bm').href = code;
 </script>
 </body>
 </html>

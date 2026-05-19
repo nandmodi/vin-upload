@@ -19,7 +19,6 @@
   .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
   .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
   .success-box { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #3ecf8e; margin-top: 16px; }
-  .code { font-family: monospace; font-size: 12px; background: #1e2230; padding: 10px 12px; border-radius: 6px; color: #8b90a0; margin-top: 8px; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -32,7 +31,7 @@
     <div class="step-content">
       <h3>Drag this button to your Chrome bookmarks bar</h3>
       <p>Hold and drag the button below to your Chrome bookmarks toolbar</p>
-      <a class="bookmarklet-btn" id="bookmarkletLink" href="#">📤 Open Spyne Dashboard</a>
+      <a class="bookmarklet-btn" id="bm" href="">📤 Open Spyne Dashboard</a>
       <p class="drag-hint">👆 Drag this to your bookmarks bar</p>
     </div>
   </div>
@@ -48,7 +47,7 @@
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-content">
-      <h3>Click the bookmark</h3>
+      <h3>Click the bookmark while on Spyne</h3>
       <p>While on any Spyne page, click <strong>"📤 Open Spyne Dashboard"</strong> in your bookmarks bar → Dashboard opens already connected! ✅</p>
     </div>
   </div>
@@ -56,24 +55,21 @@
   <div class="divider"></div>
 
   <div class="success-box">
-    ✅ After setup, just click the bookmark anytime you want to use the dashboard — no login needed!
+    ✅ After setup, just click the bookmark anytime — no login needed!
   </div>
 </div>
 
 <script>
-  // Set dashboard URL dynamically
-  const DASHBOARD_URL = 'https://nandmodi.github.io/vin-upload/';
-
-  const bookmarkletCode = `javascript:(function(){
-    var tok = localStorage.getItem('defaultBearerToken');
-    var ud = localStorage.getItem('userDetails');
-    var uid = '';
-    try { uid = JSON.parse(ud).userId || JSON.parse(ud)._id || ''; } catch(e){}
-    if (!tok) { alert('Please login to Spyne first!'); return; }
-    window.open('${DASHBOARD_URL}?token=' + encodeURIComponent(tok) + '&uid=' + encodeURIComponent(uid), '_blank');
-  })();`;
-
-  document.getElementById('bookmarkletLink').href = bookmarkletCode;
+var dashUrl = 'https://nandmodi.github.io/vin-upload/';
+var code = 'javascript:(function(){' +
+  'var tok=localStorage.getItem("defaultBearerToken");' +
+  'var ud=localStorage.getItem("userDetails");' +
+  'var uid="";' +
+  'try{uid=JSON.parse(ud).userId||JSON.parse(ud)._id||"";}catch(e){}' +
+  'if(!tok){alert("Please login to Spyne first!");return;}' +
+  'window.open("' + dashUrl + '?token="+encodeURIComponent(tok)+"&uid="+encodeURIComponent(uid),"_blank");' +
+'})();';
+document.getElementById('bm').href = code;
 </script>
 </body>
 </html>

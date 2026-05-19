@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spyne Dashboard — Setup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; color: #e8eaf0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 520px; width: 100%; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .sub { font-size: 14px; color: #8b90a0; margin-bottom: 28px; }
+  .step { display: flex; gap: 14px; margin-bottom: 24px; align-items: flex-start; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #4f8ef7; color: white; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .step-content p { font-size: 13px; color: #8b90a0; line-height: 1.6; }
+  .bookmarklet-btn { display: inline-block; background: #4f8ef7; color: white; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: grab; border: 2px dashed rgba(255,255,255,0.3); margin-top: 8px; }
+  .bookmarklet-btn:hover { background: #6ba0f9; }
+  .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
+  .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
+  .success-box { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #3ecf8e; margin-top: 16px; }
+  .code { font-family: monospace; font-size: 12px; background: #1e2230; padding: 10px 12px; border-radius: 6px; color: #8b90a0; margin-top: 8px; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔗 Connect Spyne to Dashboard</h1>
+  <p class="sub">One-time setup — takes 30 seconds</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <h3>Drag this button to your Chrome bookmarks bar</h3>
+      <p>Hold and drag the button below to your Chrome bookmarks toolbar</p>
+      <a class="bookmarklet-btn" id="bookmarkletLink" href="#">📤 Open Spyne Dashboard</a>
+      <p class="drag-hint">👆 Drag this to your bookmarks bar</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <h3>Open Spyne Console and login</h3>
+      <p>Go to <strong style="color:#4f8ef7;">console.spyne.ai</strong> and make sure you're logged in</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <h3>Click the bookmark</h3>
+      <p>While on any Spyne page, click <strong>"📤 Open Spyne Dashboard"</strong> in your bookmarks bar → Dashboard opens already connected! ✅</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="success-box">
+    ✅ After setup, just click the bookmark anytime you want to use the dashboard — no login needed!
+  </div>
+</div>
+
+<script>
+  // Set dashboard URL dynamically
+  const DASHBOARD_URL = window.location.origin + '/index.html';
+
+  const bookmarkletCode = `javascript:(function(){
+    var tok = localStorage.getItem('defaultBearerToken');
+    var ud = localStorage.getItem('userDetails');
+    var uid = '';
+    try { uid = JSON.parse(ud).userId || JSON.parse(ud)._id || ''; } catch(e){}
+    if (!tok) { alert('Please login to Spyne first!'); return; }
+    window.open('${DASHBOARD_URL}?token=' + encodeURIComponent(tok) + '&uid=' + encodeURIComponent(uid), '_blank');
+  })();`;
+
+  document.getElementById('bookmarkletLink').href = bookmarkletCode;
+</script>
+</body>
+</html>

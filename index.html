@@ -658,14 +658,27 @@ function disconnectSpyne() {
 }
 
 window.addEventListener('load', () => {
-  // Check URL for token (when opened from Spyne bookmarklet)
   const urlParams = new URLSearchParams(window.location.search);
   const urlToken  = urlParams.get('token');
+  const urlUid    = urlParams.get('uid');
   if (urlToken) {
-    applyManualToken(urlToken);
-    // Clean URL
+    // Extract userId from URL param or decode from token
+    let uid = urlUid || '';
+    if (!uid) {
+      try {
+        const b64 = urlToken.replace('Bearer ','').split('.')[1];
+        const pl  = JSON.parse(atob(b64));
+        uid = pl.userId || pl.user_id || pl.id || '';
+      } catch(e) {}
+    }
+    loginToken  = urlToken;
+    loginUserId = uid;
+    localStorage.setItem('spyneLoginToken', urlToken);
+    localStorage.setItem('spyneLoginUserId', uid);
+    document.getElementById('spyneDot').style.color = '#3ecf8e';
+    document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
     window.history.replaceState({}, '', window.location.pathname);
-    log('ok', 'Token received from Spyne ✅');
+    log('ok', 'Spyne connected via bookmark · user: ' + uid);
   } else {
     setTimeout(detectLogin, 500);
   }

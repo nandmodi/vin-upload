@@ -513,7 +513,7 @@ async function uploadFile(base, fi) {
 
   const r2 = await fetch(d1.uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': fi.contentType, 'x-amz-acl': 'public-read' },
+    headers: { 'Content-Type': fi.contentType },
     body: fi.file
   });
   if (!r2.ok) throw new Error(`S3 upload failed: HTTP ${r2.status}`);

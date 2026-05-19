@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f1117; color: #e8eaf0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 520px; width: 100%; }
+  .card { background: #181b23; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 36px; max-width: 540px; width: 100%; }
   h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
   .sub { font-size: 14px; color: #8b90a0; margin-bottom: 28px; }
   .step { display: flex; gap: 14px; margin-bottom: 24px; align-items: flex-start; }
@@ -18,12 +18,13 @@
   .drag-hint { font-size: 12px; color: #555b6e; margin-top: 6px; }
   .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 24px 0; }
   .success-box { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #3ecf8e; margin-top: 16px; }
+  .note { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f5a623; margin-top: 10px; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🔗 Connect Spyne to Dashboard</h1>
-  <p class="sub">One-time setup — takes 30 seconds</p>
+  <p class="sub">One-time setup — generates tokens for ALL teams automatically</p>
 
   <div class="step">
     <div class="step-num">1</div>
@@ -37,55 +38,83 @@
   <div class="step">
     <div class="step-num">2</div>
     <div class="step-content">
-      <h3>Open Spyne Console and login</h3>
-      <p>Go to <strong style="color:#4f8ef7;">console.spyne.ai</strong> — make sure you're logged in to the correct enterprise & team</p>
+      <h3>Go to Spyne Console and login</h3>
+      <p>Open <strong style="color:#4f8ef7;">console.spyne.ai</strong> and login to your enterprise</p>
     </div>
   </div>
 
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-content">
-      <h3>Click the bookmark while on Spyne</h3>
-      <p>The bookmark reads your login + generates API token automatically → opens dashboard connected ✅</p>
+      <h3>Click the bookmark</h3>
+      <p>While on Spyne → click <strong>"📤 Open Spyne Dashboard"</strong></p>
+      <p style="margin-top:4px;">It will automatically:</p>
+      <p>✅ Get all teams for your enterprise</p>
+      <p>✅ Generate API token for each team</p>
+      <p>✅ Open dashboard with all tokens ready</p>
     </div>
   </div>
 
   <div class="divider"></div>
 
   <div class="success-box">
-    ✅ Token is generated directly from Spyne — works for all teams!
+    ✅ One click = tokens for ALL teams generated automatically!
+  </div>
+  <div class="note">
+    ⏱ May take 10-20 seconds for enterprises with many teams
   </div>
 </div>
 
 <script>
 var dashUrl = 'https://nandmodi.github.io/vin-upload/';
 
-// Bookmarklet that:
-// 1. Reads login token from Spyne localStorage
-// 2. Calls Spyne API directly to generate API token for current enterprise+team
-// 3. Opens dashboard with all tokens
 var code = 'javascript:(function(){' +
   'var loginTok=localStorage.getItem("defaultBearerToken");' +
   'if(!loginTok){alert("Please login to Spyne first!");return;}' +
   'var uid="";' +
   'try{var ud=JSON.parse(localStorage.getItem("userDetails")||"{}");uid=ud.userId||ud._id||"";}catch(e){}' +
-  // Get current enterprise+team from URL
+  // Get enterprise from URL
   'var url=window.location.href;' +
-  'var entMatch=url.match(/enterprise_id=([^&]+)/);' +
-  'var teamMatch=url.match(/team_id=([^&]+)/);' +
+  'var entMatch=url.match(/enterprise_id=([^&?]+)/);' +
   'var ent=entMatch?decodeURIComponent(entMatch[1]):"";' +
-  'var team=teamMatch?decodeURIComponent(teamMatch[1]).replace(/[\\[\\]]/g,""):"";' +
-  // Generate API token directly from Spyne
-  'var xhr=new XMLHttpRequest();' +
-  'xhr.open("POST","https://api.spyne.ai/user-management/v1/token/generate",false);' +
-  'xhr.setRequestHeader("Content-Type","application/json");' +
-  'xhr.setRequestHeader("Authorization",loginTok);' +
-  'xhr.send(JSON.stringify({enterpriseId:ent,teamId:team,userId:uid,name:"auto-"+Date.now()}));' +
-  'var resp=JSON.parse(xhr.responseText);' +
-  'var apiToken=resp.data&&resp.data.encoded?resp.data.encoded:"";' +
-  'if(!apiToken){alert("Could not generate API token. Check enterprise/team.");return;}' +
-  // Open dashboard with all data
-  'window.open("' + dashUrl + '?loginToken="+encodeURIComponent(loginTok)+"&uid="+encodeURIComponent(uid)+"&ent="+encodeURIComponent(ent)+"&team="+encodeURIComponent(team)+"&apiToken="+encodeURIComponent(apiToken),"_blank");' +
+  'if(!ent){' +
+    'try{var rs=JSON.parse(localStorage.getItem("reduxState")||"{}");' +
+    'ent=rs.enterpriseId||rs.enterprise_id||"";}catch(e){}' +
+  '}' +
+  'if(!ent){alert("Could not detect enterprise. Please navigate to a team page first.");return;}' +
+  // Show loading alert
+  'var overlay=document.createElement("div");' +
+  'overlay.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";' +
+  'overlay.innerHTML="<div style=\'color:white;font-size:18px;font-weight:600;\'>🔗 Generating tokens for all teams…</div><div id=\'spyne-progress\' style=\'color:#8b90a0;font-size:14px;\'>Fetching team list…</div>";' +
+  'document.body.appendChild(overlay);' +
+  // Fetch all teams
+  'var teamXhr=new XMLHttpRequest();' +
+  'teamXhr.open("GET","https://api.spyne.ai/console/v1/enterprise/get-team-list?enterpriseId="+ent,false);' +
+  'teamXhr.setRequestHeader("Authorization",loginTok);' +
+  'teamXhr.send();' +
+  'var teamData=JSON.parse(teamXhr.responseText);' +
+  'var teams=teamData.data&&teamData.data.teamDetails?teamData.data.teamDetails:[];' +
+  'if(!teams.length){document.body.removeChild(overlay);alert("No teams found.");return;}' +
+  // Generate token for each team
+  'var tokens={};' +
+  'var prog=document.getElementById("spyne-progress");' +
+  'for(var i=0;i<teams.length;i++){' +
+    'var t=teams[i];' +
+    'if(prog)prog.textContent="Generating token "+（i+1)+" of "+teams.length+": "+t.team_name;' +
+    'try{' +
+      'var xhr=new XMLHttpRequest();' +
+      'xhr.open("POST","https://api.spyne.ai/user-management/v1/token/generate",false);' +
+      'xhr.setRequestHeader("Content-Type","application/json");' +
+      'xhr.setRequestHeader("Authorization",loginTok);' +
+      'xhr.send(JSON.stringify({enterpriseId:ent,teamId:t.team_id,userId:uid,name:"auto-"+Date.now()}));' +
+      'var resp=JSON.parse(xhr.responseText);' +
+      'if(resp.data&&resp.data.encoded){tokens[ent+"/"+t.team_id]=resp.data.encoded;}' +
+    '}catch(e){}' +
+  '}' +
+  'document.body.removeChild(overlay);' +
+  // Open dashboard with all tokens
+  'var dashWithTokens="' + dashUrl + '?loginToken="+encodeURIComponent(loginTok)+"&uid="+encodeURIComponent(uid)+"&ent="+encodeURIComponent(ent)+"&allTokens="+encodeURIComponent(JSON.stringify(tokens));' +
+  'window.open(dashWithTokens,"_blank");' +
 '})();';
 
 document.getElementById('bm').href = code;

@@ -127,9 +127,14 @@
 <div class="sidebar">
 
   <div class="s-section">
-    <div class="s-title">Spyne Login</div>
-    <div class="sub" id="loginHint">Checking Spyne login…</div>
-    <button class="btn full" style="margin-top:8px;" onclick="detectLogin()">↺ Detect Login</button>
+    <div class="s-title">Spyne Connection</div>
+    <div id="loginHint" style="font-size:12px;color:var(--muted);margin-bottom:8px;">Not connected</div>
+    <button class="btn primary full" onclick="connectSpyne()" id="connectBtn">
+      🔗 Connect Spyne
+    </button>
+    <button class="btn full" onclick="disconnectSpyne()" style="font-size:12px;">
+      Disconnect
+    </button>
   </div>
 
   <div class="s-section">
@@ -220,8 +225,6 @@ let loginToken=null, loginUserId=null;
 async function detectLogin() {
   const hint = document.getElementById('loginHint');
   const dot  = document.getElementById('spyneDot');
-  hint.textContent = 'Detecting…';
-  hint.className = 'sub';
 
   // Check saved token first
   const saved = localStorage.getItem('spyneLoginToken');
@@ -229,51 +232,91 @@ async function detectLogin() {
   if (saved) {
     loginToken  = saved;
     loginUserId = savedUser || '';
-    hint.innerHTML = '<span style="color:var(--green)">✓ Auto-logged in · ' + loginUserId + '</span>';
+    hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne</span>';
     dot.style.color = '#3ecf8e';
-    log('ok', 'Using saved Spyne login · user: ' + loginUserId);
+    log('ok', 'Spyne connected · user: ' + loginUserId);
     return;
   }
 
-  // Try iframe approach
-  try {
-    const iframe = document.createElement('iframe');
-    iframe.src = SPYNE_CONSOLE + '/developer-hub';
-    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;';
-    document.body.appendChild(iframe);
-    await new Promise(r => setTimeout(r, 3000));
-    try {
-      const tok = iframe.contentWindow.localStorage.getItem('defaultBearerToken');
-      const ud  = iframe.contentWindow.localStorage.getItem('userDetails');
-      if (tok) {
-        loginToken  = tok;
-        loginUserId = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-        hint.textContent = `✓ Logged in as ${loginUserId}`;
-        hint.className = 'sub ok';
-        dot.style.color = '#3ecf8e';
-        log('ok', `Spyne login detected · user: ${loginUserId}`);
-        document.body.removeChild(iframe);
-        return;
-      }
-    } catch(e) {}
-    document.body.removeChild(iframe);
-  } catch(e) {}
-
-  // Fallback: manual paste
-  hint.innerHTML = `
-    <span style="color:var(--amber);">Paste Spyne login token once:</span>
-    <input type="password" placeholder="Bearer eyJ..." id="manualTok"
-      style="width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:6px 8px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;" />
-    <button onclick="applyManualToken(document.getElementById('manualTok').value)" 
-      style="margin-top:6px;width:100%;padding:7px;background:var(--blue);border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px;font-weight:500;">
-      ✓ Save Token
-    </button>
-    <div style="font-size:10px;color:var(--hint);margin-top:4px;">
-      Get from Spyne → F12 → Console:<br/>
-      <code style="color:var(--blue);font-size:10px;">localStorage.getItem('defaultBearerToken')</code><br/>
-      <span style="color:var(--green);">✓ Saved automatically for next visits</span>
-    </div>`;
+  hint.textContent = 'Not connected';
+  hint.className = 'sub warn';
   dot.style.color = '#f5a623';
+}
+
+function connectSpyne() {
+  const hint = document.getElementById('loginHint');
+  const dot  = document.getElementById('spyneDot');
+  hint.innerHTML = '<span class="spinner" style="display:inline-block;margin-right:6px;"></span> Connecting…';
+
+  // Listen for message from popup
+  function onMessage(e) {
+    if (e.origin !== 'https://console.spyne.ai') return;
+    if (!e.data?.spyneToken) return;
+    window.removeEventListener('message', onMessage);
+    loginToken  = e.data.spyneToken;
+    loginUserId = e.data.userId || '';
+    // Save for next time
+    localStorage.setItem('spyneLoginToken', loginToken);
+    localStorage.setItem('spyneLoginUserId', loginUserId);
+    hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
+    dot.style.color = '#3ecf8e';
+    log('ok', 'Spyne connected · user: ' + loginUserId);
+    // Fetch tokens for any loaded combos
+    Object.keys(comboMap).forEach(k => fetchToken(k));
+  }
+  window.addEventListener('message', onMessage);
+
+  // Open Spyne bridge page in popup
+  const popup = window.open(
+    'https://console.spyne.ai/developer-hub',
+    'spyne-connect',
+    'width=500,height=600,scrollbars=yes'
+  );
+
+  // Inject bridge script after popup loads
+  setTimeout(() => {
+    try {
+      const tok = popup.localStorage.getItem('defaultBearerToken');
+      const ud  = popup.localStorage.getItem('userDetails');
+      const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
+      if (tok) {
+        window.removeEventListener('message', onMessage);
+        loginToken  = tok;
+        loginUserId = uid;
+        localStorage.setItem('spyneLoginToken', tok);
+        localStorage.setItem('spyneLoginUserId', uid);
+        hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
+        dot.style.color = '#3ecf8e';
+        log('ok', 'Spyne connected · user: ' + uid);
+        Object.keys(comboMap).forEach(k => fetchToken(k));
+        popup.close();
+      } else {
+        // Inject postMessage script into popup
+        popup.eval(`
+          const tok = localStorage.getItem('defaultBearerToken');
+          const ud = localStorage.getItem('userDetails');
+          const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
+          if (tok) {
+            window.opener.postMessage({ spyneToken: tok, userId: uid }, '*');
+            window.close();
+          }
+        `);
+      }
+    } catch(e) {
+      // If popup blocked same-origin, show not logged in message
+      hint.innerHTML = '<span style="color:var(--red)">✗ Please login to Spyne first, then click Connect again</span>';
+      dot.style.color = '#f25757';
+    }
+  }, 3000);
+
+  // Timeout
+  setTimeout(() => {
+    window.removeEventListener('message', onMessage);
+    if (!loginToken) {
+      hint.innerHTML = '<span style="color:var(--red)">✗ Connection timeout. Please login to Spyne first.</span>';
+      dot.style.color = '#f25757';
+    }
+  }, 15000);
 }
 
 function applyManualToken(val) {
@@ -285,13 +328,11 @@ function applyManualToken(val) {
     const data = JSON.parse(atob(b64));
     loginUserId = data.userId || data.user_id || '';
   } catch(e) {}
-  // Save to localStorage for next time
   localStorage.setItem('spyneLoginToken', val);
   localStorage.setItem('spyneLoginUserId', loginUserId);
   document.getElementById('spyneDot').style.color = '#3ecf8e';
-  document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Logged in · saved for next time</span>';
-  log('ok', `Token set & saved · user: ${loginUserId}`);
-  // Re-fetch tokens for existing combos
+  document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne</span>';
+  log('ok', 'Token saved · user: ' + loginUserId);
   Object.keys(comboMap).forEach(k => fetchToken(k));
 }
 
@@ -573,6 +614,15 @@ function log(type,msg){
 function clearLog(){document.getElementById('logBody').innerHTML='';}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function pad(n){return String(n).padStart(2,'0');}
+
+function disconnectSpyne() {
+  loginToken = null; loginUserId = null;
+  localStorage.removeItem('spyneLoginToken');
+  localStorage.removeItem('spyneLoginUserId');
+  document.getElementById('loginHint').textContent = 'Disconnected';
+  document.getElementById('spyneDot').style.color = 'var(--hint)';
+  log('info', 'Spyne disconnected');
+}
 
 window.addEventListener('load',()=>setTimeout(detectLogin,1000));
 </script>

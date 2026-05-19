@@ -377,6 +377,16 @@ async function fetchToken(comboKey) {
   if (stEl) { stEl.textContent='Fetching…'; stEl.className='combo-status loading'; }
 
   try {
+    // Check localStorage for stored API token first
+    const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
+    if (stored[comboKey]) {
+      combo.token = stored[comboKey];
+      if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
+      log('ok', `[${combo.ent}/${combo.team}] Using stored API token`);
+      return;
+    }
+
+    // Generate via Lambda
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -652,33 +662,40 @@ function disconnectSpyne() {
   loginToken = null; loginUserId = null;
   localStorage.removeItem('spyneLoginToken');
   localStorage.removeItem('spyneLoginUserId');
+  localStorage.removeItem('spyneApiTokens');
   document.getElementById('loginHint').textContent = 'Disconnected';
   document.getElementById('spyneDot').style.color = 'var(--hint)';
-  log('info', 'Spyne disconnected');
+  log('info', 'Spyne disconnected · all tokens cleared');
 }
 
 window.addEventListener('load', () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlToken  = urlParams.get('token');
-  const urlUid    = urlParams.get('uid');
+  const urlParams  = new URLSearchParams(window.location.search);
+  const urlToken   = urlParams.get('token') || urlParams.get('loginToken');
+  const urlUid     = urlParams.get('uid');
+  const urlApiToken = urlParams.get('apiToken');
+  const urlEnt     = urlParams.get('ent');
+  const urlTeam    = urlParams.get('team');
+
   if (urlToken) {
-    // Extract userId from URL param or decode from token
     let uid = urlUid || '';
-    if (!uid) {
-      try {
-        const b64 = urlToken.replace('Bearer ','').split('.')[1];
-        const pl  = JSON.parse(atob(b64));
-        uid = pl.userId || pl.user_id || pl.id || '';
-      } catch(e) {}
-    }
     loginToken  = urlToken;
     loginUserId = uid;
     localStorage.setItem('spyneLoginToken', urlToken);
     localStorage.setItem('spyneLoginUserId', uid);
     document.getElementById('spyneDot').style.color = '#3ecf8e';
     document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
-    window.history.replaceState({}, '', window.location.pathname);
     log('ok', 'Spyne connected via bookmark · user: ' + uid);
+
+    // Store API token for this combo if provided
+    if (urlApiToken && urlEnt && urlTeam) {
+      const comboKey = urlEnt + '/' + urlTeam;
+      const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
+      stored[comboKey] = urlApiToken;
+      localStorage.setItem('spyneApiTokens', JSON.stringify(stored));
+      log('ok', 'API token stored for ' + comboKey);
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
   } else {
     setTimeout(detectLogin, 500);
   }

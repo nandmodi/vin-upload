@@ -492,9 +492,23 @@ function updateRow(k){
   if(upel) upel.textContent=`${r.s3Urls.length}/${vinMap[k].files.length}`;
   if(bgel) bgel.textContent=comboMap[ck]?.bgId||'—';
   if(dtel){
-    if(r.errorMsg)         dtel.innerHTML=`<span style="color:var(--red)">${esc(r.errorMsg.slice(0,60))}</span>`;
-    else if(r.dealerVinID) dtel.innerHTML=`<span style="color:var(--green);font-family:var(--mono);font-size:11px;">${esc(r.dealerVinID)}</span>`;
-    else if(r.s3Status==='ok') dtel.textContent=`${r.s3Urls.length} URLs`;
+    if(r.spyneStatus==='ok' && r.dealerVinID) {
+      dtel.innerHTML=`<span style="color:var(--green)">✓ Submitted</span> <span style="color:var(--hint);font-family:var(--mono);font-size:10px;">${esc(r.dealerVinID.slice(0,8))}…</span>`;
+    } else if(r.spyneStatus==='error' && r.errorMsg) {
+      // Show friendly error reason
+      let reason = r.errorMsg;
+      if(reason.includes('401')) reason = '🔑 Auth failed — token issue';
+      else if(reason.includes('BG ID') || reason.includes('background') || reason.includes('Background')) reason = '🎨 Wrong Background ID';
+      else if(reason.includes('Enterprise') || reason.includes('enterprise')) reason = '🏢 Enterprise mismatch';
+      else if(reason.includes('Team') || reason.includes('team')) reason = '👥 Team not found';
+      else if(reason.includes('400')) reason = '⚠️ Bad request';
+      else if(reason.includes('500')) reason = '🔥 Server error';
+      dtel.innerHTML=`<span style="color:var(--red);font-size:12px;" title="${esc(r.errorMsg)}">${esc(reason.slice(0,40))}</span>`;
+    } else if(r.s3Status==='ok' && r.spyneStatus==='pending') {
+      dtel.innerHTML=`<span style="color:var(--muted)">${r.s3Urls.length} images ready</span>`;
+    } else if(r.errorMsg) {
+      dtel.innerHTML=`<span style="color:var(--red)">${esc(r.errorMsg.slice(0,40))}</span>`;
+    }
   }
 }
 

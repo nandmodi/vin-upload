@@ -627,6 +627,22 @@ async function callSpyne(vinData,imageUrls,bgId,token){
   });
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+
+  // Check for bg_id error even on success response
+  if(data?.data?.validationSummary?.isRequestRejected) {
+    const errMsg = data?.data?.validationSummary?.displayError?.message || 'Validation error';
+    // Highlight bg_id field in red if bg_id error
+    if(errMsg.toLowerCase().includes('background') || errMsg.toLowerCase().includes('config')) {
+      const ck = `${vinData.ent}/${vinData.team}`;
+      const id = ck.replace(/\//g,'_');
+      const bgEl = document.getElementById('bg-'+id);
+      if(bgEl) {
+        bgEl.style.borderColor = 'var(--red)';
+        bgEl.title = errMsg;
+      }
+      throw new Error('Wrong BG ID: ' + errMsg);
+    }
+  }
   return data;
 }
 

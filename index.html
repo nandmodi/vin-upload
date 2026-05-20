@@ -268,60 +268,8 @@ async function fetchToken(comboKey) {
   const id    = comboKey.replace(/\//g,'_');
   const stEl  = document.getElementById('st-'+id);
   if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
-
-  return new Promise((resolve) => {
-    // Open Spyne developer-hub with correct enterprise+team
-    // Spyne auto-switches to this enterprise when URL params are passed
-    const spyneUrl = `https://console.spyne.ai/developer-hub?team_id=${encodeURIComponent(combo.team)}&enterprise_id=${encodeURIComponent(combo.ent)}`;
-    const popup = window.open(spyneUrl, `tok_${id}`, 'width=1,height=1,left=-9999,top=-9999');
-
-    if (!popup) {
-      // Popup blocked - use current loginToken as fallback
-      log('warn', `[${combo.ent}/${combo.team}] Popup blocked - using current token`);
-      generateTokenViaLambda(comboKey, loginToken, loginUserId).then(resolve);
-      return;
-    }
-
-    let done = false;
-    let attempts = 0;
-
-    const check = setInterval(async () => {
-      attempts++;
-      try {
-        if (popup.closed) {
-          clearInterval(check);
-          if (!done) { done = true; resolve(); }
-          return;
-        }
-        // Try reading localStorage from popup
-        // This works because Spyne switched enterprise via URL params
-        const tok = popup.localStorage.getItem('defaultBearerToken');
-        const ud  = popup.localStorage.getItem('userDetails');
-        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-
-        if (tok && !done) {
-          done = true;
-          clearInterval(check);
-          popup.close();
-          log('info', `[${combo.ent}/${combo.team}] Got token from popup ✅`);
-          await generateTokenViaLambda(comboKey, tok, uid);
-          resolve();
-        }
-      } catch(e) {
-        // Still loading — wait
-        if (attempts > 30) { // 15 second timeout
-          clearInterval(check);
-          if (!done) {
-            done = true;
-            try { popup.close(); } catch(e2) {}
-            log('warn', `[${combo.ent}/${combo.team}] Timeout - using current token`);
-            await generateTokenViaLambda(comboKey, loginToken, loginUserId);
-            resolve();
-          }
-        }
-      }
-    }, 500);
-  });
+  // Use login token directly — works across all enterprises
+  await generateTokenViaLambda(comboKey, loginToken, loginUserId);
 }
 
 async function generateTokenViaLambda(comboKey, tok, uid) {

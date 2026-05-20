@@ -13,7 +13,7 @@
     --green:#3ecf8e;--green-dim:rgba(62,207,142,0.12);
     --amber:#f5a623;--amber-dim:rgba(245,166,35,0.12);
     --red:#f25757;--red-dim:rgba(242,87,87,0.12);
-    --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.12);
+    --purple:#a78bfa;
     --radius:10px;--radius-sm:6px;
     --mono:'SF Mono','Fira Code',monospace;
     --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -33,10 +33,13 @@
   .main{padding:24px;overflow-y:auto;}
   .s-title{font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;}
   .s-section{margin-bottom:20px;}
-  .sub{font-size:11px;color:var(--hint);margin-top:3px;}
-  .sub.ok{color:var(--green);}
-  .sub.err{color:var(--red);}
-  .sub.warn{color:var(--amber);}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--mono);}
+  .field input:focus{border-color:var(--blue);}
+  .field .hint{font-size:11px;margin-top:3px;}
+  .field .hint.ok{color:var(--green);}
+  .field .hint.err{color:var(--red);}
+  .field .hint.muted{color:var(--hint);}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--sans);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
   .btn:hover:not(:disabled){background:rgba(255,255,255,0.06);}
   .btn:disabled{opacity:0.4;cursor:not-allowed;}
@@ -57,11 +60,11 @@
   .combo-sep{font-size:11px;color:var(--hint);}
   .combo-team{font-size:11px;font-weight:600;color:var(--blue);font-family:var(--mono);}
   .combo-meta{font-size:11px;color:var(--hint);margin-left:auto;}
-  .combo-status{font-size:10px;padding:1px 7px;border-radius:99px;font-weight:500;}
-  .combo-status.ok    {background:var(--green-dim);color:var(--green);}
-  .combo-status.err   {background:var(--red-dim);color:var(--red);}
-  .combo-status.loading{background:var(--amber-dim);color:var(--amber);}
-  .combo-status.pending{background:var(--surface2);color:var(--muted);}
+  .cs{font-size:10px;padding:1px 7px;border-radius:99px;font-weight:500;}
+  .cs.ok{background:var(--green-dim);color:var(--green);}
+  .cs.err{background:var(--red-dim);color:var(--red);}
+  .cs.loading{background:var(--amber-dim);color:var(--amber);}
+  .cs.pending{background:var(--surface2);color:var(--muted);}
   .combo-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
   .combo-row label{font-size:11px;color:var(--muted);white-space:nowrap;width:45px;}
   .combo-row input{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;}
@@ -108,7 +111,6 @@
   .spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,0.2);border-top-color:currentColor;border-radius:50%;animation:spin 0.7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .info-box{font-size:11px;color:var(--hint);line-height:1.8;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);margin-top:10px;}
-  .info-box strong{color:var(--muted);}
   ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
   @media(max-width:900px){.layout{grid-template-columns:1fr;}.sidebar{height:auto;position:static;}.stats{grid-template-columns:repeat(2,1fr);}}
 </style>
@@ -126,17 +128,19 @@
 <div class="layout">
 <div class="sidebar">
 
+  <!-- Login Token -->
   <div class="s-section">
-    <div class="s-title">Spyne Connection</div>
-    <div id="loginHint" style="font-size:12px;color:var(--muted);margin-bottom:8px;">Not connected</div>
-    <button class="btn primary full" onclick="connectSpyne()" id="connectBtn">
-      🔗 Connect Spyne
-    </button>
-    <button class="btn full" onclick="disconnectSpyne()" style="font-size:12px;">
-      Disconnect
-    </button>
+    <div class="s-title">Spyne Login</div>
+    <div class="field">
+      <label>Login Token</label>
+      <input type="password" id="loginTokenInput" placeholder="Bearer eyJ..." />
+      <div class="hint muted" id="loginHint">Paste from Spyne → F12 → Console:<br/>localStorage.getItem('defaultBearerToken')</div>
+    </div>
+    <button class="btn full" onclick="saveLoginToken()">✓ Save Token</button>
+    <button class="btn full" style="font-size:12px;" onclick="clearLoginToken()">✕ Clear Token</button>
   </div>
 
+  <!-- Folder -->
   <div class="s-section">
     <div class="s-title">Upload Folder</div>
     <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()">
@@ -147,11 +151,13 @@
     <input type="file" id="fi" webkitdirectory multiple />
   </div>
 
+  <!-- Combos -->
   <div class="s-section" id="combosSection" style="display:none;">
     <div class="s-title">Combos — bg_id required</div>
     <div class="combos-wrap" id="combosWrap"></div>
   </div>
 
+  <!-- Actions -->
   <div class="s-section">
     <button class="btn primary full" id="runBtn" disabled onclick="runPipeline()">▶ Run Pipeline</button>
     <button class="btn full" onclick="resetAll()">↺ Reset</button>
@@ -159,16 +165,13 @@
   </div>
 
   <div class="info-box">
-    <strong>Auto flow:</strong><br/>
-    ✅ Reads Spyne login token<br/>
-    ✅ Generates API token per combo<br/>
-    ✅ Uploads images to S3<br/>
-    ✅ Submits to Spyne API<br/><br/>
-    <strong>You only need:</strong><br/>
-    1. Be logged into Spyne<br/>
+    <strong style="color:var(--muted);">How it works:</strong><br/>
+    1. Paste Spyne login token once<br/>
     2. Upload folder<br/>
     3. Enter bg_id per combo<br/>
-    4. Click Run ✅
+    4. Click Run Pipeline ✅<br/><br/>
+    <strong style="color:var(--muted);">Token is saved in browser</strong><br/>
+    No need to paste again next time!
   </div>
 
 </div>
@@ -215,255 +218,69 @@
 
 <script>
 const API_BASE = 'https://ylyqnhitu9.execute-api.ap-south-1.amazonaws.com';
-const SPYNE_CONSOLE = 'https://console.spyne.ai';
 
 let vinMap={}, comboMap={}, results={};
 let tUploaded=0, tSpyne=0, tErrors=0;
 let loginToken=null, loginUserId=null;
 
-/* ─── Detect Spyne login ─── */
-async function detectLogin() {
-  const hint = document.getElementById('loginHint');
-  const dot  = document.getElementById('spyneDot');
-
-  // Check saved token first
-  const saved = localStorage.getItem('spyneLoginToken');
-  const savedUser = localStorage.getItem('spyneLoginUserId');
-  if (saved) {
-    loginToken  = saved;
-    loginUserId = savedUser || '';
-    hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne</span>';
-    dot.style.color = '#3ecf8e';
-    log('ok', 'Spyne connected · user: ' + loginUserId);
-    return;
-    // Note: API tokens are generated fresh per session
-  }
-
-  hint.textContent = 'Not connected';
-  hint.className = 'sub warn';
-  dot.style.color = '#f5a623';
-}
-
-function connectSpyne() {
-  const hint = document.getElementById('loginHint');
-  const dot  = document.getElementById('spyneDot');
-  hint.innerHTML = '<span class="spinner" style="display:inline-block;margin-right:6px;vertical-align:middle;"></span> Opening Spyne…';
-
-  // Listen for postMessage from popup
-  function onMessage(e) {
-    if (!e.data?.spyneToken) return;
-    window.removeEventListener('message', onMessage);
-    loginToken  = e.data.spyneToken;
-    loginUserId = e.data.userId || '';
-    localStorage.setItem('spyneLoginToken', loginToken);
-    localStorage.setItem('spyneLoginUserId', loginUserId);
-    hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
-    dot.style.color = '#3ecf8e';
-    log('ok', 'Spyne connected · user: ' + loginUserId);
-    Object.keys(comboMap).forEach(k => fetchToken(k));
-  }
-  window.addEventListener('message', onMessage);
-
-  // Build bridge HTML that runs inside Spyne domain
-  const bridgeScript = `
-    <html>
-    <head><title>Connecting to Spyne…</title></head>
-    <body style="font-family:sans-serif;background:#0f1117;color:#e8eaf0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px;">
-      <div style="font-size:18px;font-weight:600;">🔗 Spyne Auto-Upload</div>
-      <div id="msg" style="font-size:14px;color:#8b90a0;">Reading your Spyne session…</div>
-      <button id="btn" onclick="connect()" style="padding:12px 28px;background:#4f8ef7;border:none;border-radius:8px;color:white;font-size:15px;font-weight:600;cursor:pointer;display:none;">
-        ✓ Click to Connect
-      </button>
-      <script>
-        function connect() {
-          const tok = localStorage.getItem('defaultBearerToken');
-          const ud  = localStorage.getItem('userDetails');
-          const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-          if (tok) {
-            window.opener.postMessage({ spyneToken: tok, userId: uid }, '*');
-            document.getElementById('msg').textContent = '✓ Connected! This window will close…';
-            document.getElementById('msg').style.color = '#3ecf8e';
-            document.getElementById('btn').style.display = 'none';
-            setTimeout(() => window.close(), 1000);
-          } else {
-            document.getElementById('msg').textContent = '✗ Not logged in. Please login to Spyne first.';
-            document.getElementById('msg').style.color = '#f25757';
-          }
-        }
-        // Auto-try first
-        setTimeout(() => {
-          const tok = localStorage.getItem('defaultBearerToken');
-          if (tok) {
-            connect();
-          } else {
-            document.getElementById('msg').textContent = 'Please login to Spyne, then click the button below.';
-            document.getElementById('btn').style.display = 'block';
-          }
-        }, 500);
-      <\/script>
-    </body>
-    </html>
-  `;
-
-  // Open popup with bridge HTML hosted on spyne domain via data URL
-  // Since we can't inject into spyne.ai directly, use a popup that redirects
-  const popupUrl = 'https://console.spyne.ai/developer-hub';
-  const popup = window.open(popupUrl, 'spyne-bridge', 'width=420,height=320,scrollbars=no,resizable=no');
-
-  let injected = false;
-  const tryInject = setInterval(() => {
-    try {
-      if (popup.closed) { clearInterval(tryInject); return; }
-      // Try direct localStorage access (works if same origin allowed)
-      const tok = popup.localStorage.getItem('defaultBearerToken');
-      const ud  = popup.localStorage.getItem('userDetails');
-      const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-      if (tok && !injected) {
-        injected = true;
-        clearInterval(tryInject);
-        window.removeEventListener('message', onMessage);
-        loginToken  = tok;
-        loginUserId = uid;
-        localStorage.setItem('spyneLoginToken', tok);
-        localStorage.setItem('spyneLoginUserId', uid);
-        hint.innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
-        dot.style.color = '#3ecf8e';
-        log('ok', 'Spyne auto-connected · user: ' + uid);
-        Object.keys(comboMap).forEach(k => fetchToken(k));
-        popup.close();
-      } else if (!injected) {
-        // Inject click button into popup page
-        try {
-          popup.document.body.innerHTML = bridgeScript.replace('<html>','').replace('</html>','').replace('<head><title>Connecting to Spyne…</title></head>','');
-          injected = true;
-          clearInterval(tryInject);
-        } catch(e2) {}
-      }
-    } catch(e) {}
-  }, 500);
-
-  // Timeout after 30s
-  setTimeout(() => {
-    clearInterval(tryInject);
-    window.removeEventListener('message', onMessage);
-    if (!loginToken) {
-      hint.innerHTML = '<span style="color:var(--red)">✗ Timed out. Please login to Spyne and try again.</span>';
-      dot.style.color = '#f25757';
-    }
-  }, 30000);
-}
-
-function applyManualToken(val) {
-  val = val.trim();
-  if (!val) return;
+/* ─── Login token ─── */
+function saveLoginToken() {
+  const val = document.getElementById('loginTokenInput').value.trim();
+  if (!val) { alert('Please paste your Spyne login token'); return; }
   loginToken = val;
+  // Extract userId
   try {
-    const b64  = val.replace('Bearer ','').split('.')[1];
+    const b64 = val.replace('Bearer ','');
     const data = JSON.parse(atob(b64));
     loginUserId = data.userId || data.user_id || '';
   } catch(e) {}
   localStorage.setItem('spyneLoginToken', val);
   localStorage.setItem('spyneLoginUserId', loginUserId);
+  document.getElementById('loginHint').textContent = '✓ Token saved!';
+  document.getElementById('loginHint').className = 'hint ok';
   document.getElementById('spyneDot').style.color = '#3ecf8e';
-  document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne</span>';
-  log('ok', 'Token saved · user: ' + loginUserId);
+  log('ok', 'Login token saved · userId: ' + loginUserId);
+  // Generate tokens for loaded combos
   Object.keys(comboMap).forEach(k => fetchToken(k));
 }
 
-/* ─── Generate token per combo ─── */
+function clearLoginToken() {
+  loginToken = null; loginUserId = null;
+  localStorage.removeItem('spyneLoginToken');
+  localStorage.removeItem('spyneLoginUserId');
+  document.getElementById('loginTokenInput').value = '';
+  document.getElementById('loginHint').textContent = 'Token cleared';
+  document.getElementById('loginHint').className = 'hint muted';
+  document.getElementById('spyneDot').style.color = 'var(--hint)';
+  log('info', 'Login token cleared');
+}
+
+function loadSavedToken() {
+  const saved = localStorage.getItem('spyneLoginToken');
+  if (saved) {
+    loginToken  = saved;
+    loginUserId = localStorage.getItem('spyneLoginUserId') || '';
+    document.getElementById('loginTokenInput').value = saved;
+    document.getElementById('loginHint').textContent = '✓ Token loaded from browser';
+    document.getElementById('loginHint').className = 'hint ok';
+    document.getElementById('spyneDot').style.color = '#3ecf8e';
+    log('ok', 'Login token loaded · userId: ' + loginUserId);
+  }
+}
+
+/* ─── Generate token per combo via Lambda ─── */
 async function fetchToken(comboKey) {
   const combo = comboMap[comboKey];
   const id    = comboKey.replace(/\//g,'_');
   const stEl  = document.getElementById('st-'+id);
-  if (stEl) { stEl.textContent='Fetching…'; stEl.className='combo-status loading'; }
+  if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
 
-  return new Promise((resolve) => {
-    // Open Spyne developer-hub for this exact enterprise+team
-    const spyneUrl = `https://console.spyne.ai/developer-hub?team_id=${encodeURIComponent(combo.team)}&enterprise_id=${encodeURIComponent(combo.ent)}`;
-    const popup = window.open(spyneUrl, `spyne-token-${id}`, 'width=100,height=100,left=-200,top=-200');
-
-    if (!popup) {
-      // Popup blocked - fallback to Lambda
-      fetchTokenViaLambda(comboKey).then(resolve);
-      return;
-    }
-
-    let resolved = false;
-    const tryGetToken = setInterval(async () => {
-      try {
-        if (popup.closed) {
-          clearInterval(tryGetToken);
-          if (!resolved) {
-            resolved = true;
-            if (stEl) { stEl.textContent='✗ Popup closed'; stEl.className='combo-status err'; }
-            resolve();
-          }
-          return;
-        }
-        // Try to read localStorage from popup
-        const tok = popup.localStorage.getItem('defaultBearerToken');
-        const ud  = popup.localStorage.getItem('userDetails');
-        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-        if (tok && !resolved) {
-          clearInterval(tryGetToken);
-          popup.close();
-          resolved = true;
-          // Generate token via Lambda using popup's login token
-          try {
-            const r = await fetch(API_BASE + '/generate-token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                loginToken:   tok,
-                enterpriseId: combo.ent,
-                teamId:       combo.team,
-                userId:       uid
-              })
-            });
-            const d = await r.json();
-            if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
-            combo.token = d.token;
-            // Store for this session
-            const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
-            stored[comboKey] = d.token;
-            localStorage.setItem('spyneApiTokens', JSON.stringify(stored));
-            if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
-            log('ok', `[${combo.ent}/${combo.team}] Token generated ✅`);
-          } catch(err) {
-            combo.token = null;
-            if (stEl) { stEl.textContent='✗ Token failed'; stEl.className='combo-status err'; }
-            log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
-          }
-          resolve();
-        }
-      } catch(e) {
-        // Page still loading - wait
-      }
-    }, 500);
-
-    // Timeout after 15 seconds - fallback to Lambda
-    setTimeout(async () => {
-      if (!resolved) {
-        clearInterval(tryGetToken);
-        resolved = true;
-        try { popup.close(); } catch(e) {}
-        log('warn', `[${combo.ent}/${combo.team}] Popup timeout - trying Lambda`);
-        await fetchTokenViaLambda(comboKey);
-        resolve();
-      }
-    }, 15000);
-  });
-}
-
-async function fetchTokenViaLambda(comboKey) {
-  const combo = comboMap[comboKey];
-  const id    = comboKey.replace(/\//g,'_');
-  const stEl  = document.getElementById('st-'+id);
   if (!loginToken) {
-    if (stEl) { stEl.textContent='✗ No login token'; stEl.className='combo-status err'; }
-    log('err', `[${combo.ent}/${combo.team}] No login token — click Connect Spyne`);
+    if (stEl) { stEl.textContent='✗ No token'; stEl.className='cs err'; }
+    log('err', `[${combo.ent}/${combo.team}] Paste login token first`);
     return;
   }
+
   try {
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
@@ -478,11 +295,11 @@ async function fetchTokenViaLambda(comboKey) {
     const d = await r.json();
     if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
     combo.token = d.token;
-    if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
-    log('ok', `[${combo.ent}/${combo.team}] Token via Lambda ✅`);
+    if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='cs ok'; }
+    log('ok', `[${combo.ent}/${combo.team}] Token generated ✅`);
   } catch(err) {
     combo.token = null;
-    if (stEl) { stEl.textContent='✗ Token failed'; stEl.className='combo-status err'; }
+    if (stEl) { stEl.textContent='✗ Failed'; stEl.className='cs err'; }
     log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
   }
 }
@@ -503,12 +320,12 @@ function parseFolder(files) {
     if (parts.length<5||!IMG.test(parts[parts.length-1])) continue;
     const [root,ent,team,vin]=parts;
     const vk=`${ent}/${team}/${vin}`, ck=`${ent}/${team}`;
-    if (!vinMap[vk])   vinMap[vk]   = {ent,team,vin,files:[]};
-    if (!comboMap[ck]) comboMap[ck] = {ent,team,bgId:'',token:null};
+    if (!vinMap[vk])    vinMap[vk]    = {ent,team,vin,files:[]};
+    if (!comboMap[ck])  comboMap[ck]  = {ent,team,bgId:'',token:null};
     vinMap[vk].files.push({file:f, s3Key:parts.slice(1).join('/'), contentType:f.type||'image/jpeg'});
   }
   const vks=Object.keys(vinMap), cks=Object.keys(comboMap);
-  if (!vks.length){log('warn','No valid images found');return;}
+  if (!vks.length){log('warn','No valid images found. Expected: root/enterprise/team/VIN/image.jpg');return;}
   const total=vks.reduce((a,k)=>a+vinMap[k].files.length,0);
   vks.forEach(k=>{results[k]={s3Urls:[],s3Status:'pending',spyneStatus:'pending',dealerVinID:'',errorMsg:''};});
   renderCombos(cks);
@@ -518,7 +335,7 @@ function parseFolder(files) {
   document.getElementById('runBtn').disabled=false;
   log('blue',`Found ${vks.length} VINs · ${cks.length} combos · ${total} images`);
   if (loginToken) cks.forEach(k=>fetchToken(k));
-  else log('warn','Not logged in — click "Detect Login" first');
+  else log('warn','Paste your Spyne login token and click Save Token');
 }
 
 function renderCombos(keys) {
@@ -536,7 +353,7 @@ function renderCombos(keys) {
         <span class="combo-sep">/</span>
         <span class="combo-team">${esc(team)}</span>
         <span class="combo-meta">${vins} VINs · ${imgs} imgs</span>
-        <span class="combo-status pending" id="st-${id}">Pending</span>
+        <span class="cs pending" id="st-${id}">Pending</span>
       </div>
       <div class="combo-row">
         <label>BG ID</label>
@@ -599,26 +416,27 @@ function updateRow(k){
 
 /* ─── Pipeline ─── */
 async function runPipeline() {
+  if (!loginToken) { alert('Please paste your Spyne login token first.'); return; }
+
+  // Generate fresh tokens for all combos
+  log('blue', 'Generating fresh tokens for all combos…');
+  await Promise.all(Object.keys(comboMap).map(k => fetchToken(k)));
+
   // Validate tokens
-  const noToken=Object.keys(comboMap).filter(k=>!comboMap[k].token);
-  if (noToken.length){
-    if (!loginToken){alert('Please detect Spyne login first.');return;}
-    log('warn','Fetching missing tokens…');
-    await Promise.all(noToken.map(k=>fetchToken(k)));
-    if (Object.keys(comboMap).some(k=>!comboMap[k].token)){
-      alert('Could not generate tokens for some combos. Check login and try again.');return;
-    }
-  }
+  const noToken = Object.keys(comboMap).filter(k => !comboMap[k].token);
+  if (noToken.length) { alert('Could not generate tokens for:\n' + noToken.join('\n')); return; }
+
   // Validate bgIds
-  const noBg=Object.keys(comboMap).filter(k=>!comboMap[k].bgId);
-  if (noBg.length){
+  const noBg = Object.keys(comboMap).filter(k => !comboMap[k].bgId);
+  if (noBg.length) {
     noBg.forEach(k=>{const el=document.getElementById('bg-'+k.replace(/\//g,'_'));if(el)el.style.borderColor='var(--red)';});
-    alert('Please enter Background ID for:\n'+noBg.join('\n'));return;
+    alert('Please enter Background ID for:\n'+noBg.join('\n')); return;
   }
 
   document.getElementById('runBtn').disabled=true;
   document.getElementById('runBtn').innerHTML='<span class="spinner"></span> Running…';
   setStatus('running','Uploading to S3…');
+  clearLog();
   tUploaded=0;tSpyne=0;tErrors=0;updateStats();
   const vinKeys=Object.keys(vinMap);
 
@@ -718,6 +536,7 @@ function resetAll(){
   document.getElementById('tblSub').textContent='Select a folder to populate the queue';
   setStatus('idle','');clearLog();
 }
+
 function updateStats(){
   document.getElementById('sUploaded').textContent=tUploaded;
   document.getElementById('sSpyne').textContent=tSpyne;
@@ -736,37 +555,26 @@ function clearLog(){document.getElementById('logBody').innerHTML='';}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function pad(n){return String(n).padStart(2,'0');}
 
-function disconnectSpyne() {
-  loginToken = null; loginUserId = null;
-  localStorage.removeItem('spyneLoginToken');
-  localStorage.removeItem('spyneLoginUserId');
-  localStorage.removeItem('spyneApiTokens');
-  document.getElementById('loginHint').textContent = 'Disconnected';
-  document.getElementById('spyneDot').style.color = 'var(--hint)';
-  log('info', 'Spyne disconnected · all tokens cleared');
-}
-
 window.addEventListener('load', () => {
-  const urlParams  = new URLSearchParams(window.location.search);
-  const urlToken   = urlParams.get('token') || urlParams.get('loginToken');
-  const urlUid     = urlParams.get('uid');
-  const urlApiToken = urlParams.get('apiToken');
-  const urlEnt     = urlParams.get('ent');
-  const urlTeam    = urlParams.get('team');
+  // Check if opened via bookmark (token in URL)
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get('loginToken') || params.get('token');
+  const urlUid   = params.get('uid') || '';
 
   if (urlToken) {
-    let uid = urlUid || '';
+    // Auto-save token from bookmark
+    document.getElementById('loginTokenInput').value = urlToken;
     loginToken  = urlToken;
-    loginUserId = uid;
+    loginUserId = urlUid;
     localStorage.setItem('spyneLoginToken', urlToken);
-    localStorage.setItem('spyneLoginUserId', uid);
+    localStorage.setItem('spyneLoginUserId', urlUid);
+    document.getElementById('loginHint').textContent = '✓ Connected via Spyne bookmark!';
+    document.getElementById('loginHint').className = 'hint ok';
     document.getElementById('spyneDot').style.color = '#3ecf8e';
-    document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
-    log('ok', 'Spyne connected · user: ' + uid);
-
     window.history.replaceState({}, '', window.location.pathname);
+    log('ok', 'Auto-connected via bookmark · userId: ' + urlUid);
   } else {
-    setTimeout(detectLogin, 500);
+    loadSavedToken();
   }
 });
 </script>

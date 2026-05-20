@@ -262,13 +262,101 @@ function clearLoginToken() {
 
 
 
-/* ─── Generate token per combo via Lambda ─── */
+/* ─── Generate tokens enterprise by enterprise via popup ─── */
+
+async function fetchAllTokens() {
+  // Group combos by enterprise
+  const entGroups = {};
+  Object.keys(comboMap).forEach(k => {
+    const ent = comboMap[k].ent;
+    if (!entGroups[ent]) entGroups[ent] = [];
+    entGroups[ent].push(k);
+  });
+
+  // Process each enterprise one by one
+  for (const ent of Object.keys(entGroups)) {
+    const combos = entGroups[ent];
+    const firstTeam = comboMap[combos[0]].team;
+    log('blue', `Processing enterprise: ${ent}`);
+
+    // Open Spyne with this enterprise's URL to switch session
+    const spyneUrl = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
+    const entToken = await getEnterpriseToken(spyneUrl, ent);
+
+    if (!entToken) {
+      log('err', `[${ent}] Could not get enterprise token`);
+      combos.forEach(k => {
+        const stEl = document.getElementById('st-' + k.replace(/\//g,'_'));
+        if (stEl) { stEl.textContent='✗ No token'; stEl.className='cs err'; }
+      });
+      continue;
+    }
+
+    // Generate tokens for all teams in this enterprise
+    for (const comboKey of combos) {
+      await generateTokenViaLambda(comboKey, entToken.tok, entToken.uid);
+    }
+  }
+}
+
+function getEnterpriseToken(spyneUrl, ent) {
+  return new Promise((resolve) => {
+    log('info', `Opening Spyne for enterprise ${ent}…`);
+    const popup = window.open(spyneUrl, `ent_${ent}`, 'width=200,height=200,left=0,top=0');
+
+    if (!popup) {
+      log('warn', `Popup blocked — allow popups for this site!`);
+      // Fallback to current loginToken
+      resolve({ tok: loginToken, uid: loginUserId });
+      return;
+    }
+
+    let done = false;
+    let attempts = 0;
+    const maxAttempts = 20; // 10 seconds max
+
+    const check = setInterval(() => {
+      attempts++;
+      try {
+        if (popup.closed) {
+          clearInterval(check);
+          if (!done) { done = true; resolve(null); }
+          return;
+        }
+        // Check if page loaded and enterprise switched
+        const tok = popup.localStorage.getItem('defaultBearerToken');
+        const ud  = popup.localStorage.getItem('userDetails');
+        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
+
+        if (tok && !done) {
+          // Verify this token is for the correct enterprise
+          // by checking the token payload or just use it after waiting
+          if (attempts >= 6) { // Wait at least 3 seconds for enterprise to switch
+            done = true;
+            clearInterval(check);
+            popup.close();
+            log('ok', `Got token for enterprise ${ent} ✅`);
+            resolve({ tok, uid });
+          }
+        }
+      } catch(e) {
+        // Still loading
+      }
+
+      if (attempts >= maxAttempts && !done) {
+        clearInterval(check);
+        done = true;
+        try { popup.close(); } catch(e) {}
+        log('warn', `Timeout for ${ent} — using current token`);
+        resolve({ tok: loginToken, uid: loginUserId });
+      }
+    }, 500);
+  });
+}
+
 async function fetchToken(comboKey) {
+  // Individual token fetch - used when single combo needed
   const combo = comboMap[comboKey];
-  const id    = comboKey.replace(/\//g,'_');
-  const stEl  = document.getElementById('st-'+id);
-  if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
-  // Use login token directly — works across all enterprises
   await generateTokenViaLambda(comboKey, loginToken, loginUserId);
 }
 
@@ -276,6 +364,7 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
   const combo = comboMap[comboKey];
   const id    = comboKey.replace(/\//g,'_');
   const stEl  = document.getElementById('st-'+id);
+  if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
   try {
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
@@ -329,7 +418,7 @@ function parseFolder(files) {
   document.getElementById('tblSub').textContent=`${vks.length} VINs · ${cks.length} combos · ${total} images`;
   document.getElementById('runBtn').disabled=false;
   log('blue',`Found ${vks.length} VINs · ${cks.length} combos · ${total} images`);
-  if (loginToken) cks.forEach(k=>fetchToken(k));
+  if (loginToken) fetchAllTokens();
   else log('warn','Paste your Spyne login token and click Save Token');
 }
 
@@ -413,9 +502,9 @@ function updateRow(k){
 async function runPipeline() {
   if (!loginToken) { alert('Please paste your Spyne login token first.'); return; }
 
-  // Generate fresh tokens for all combos
-  log('blue', 'Generating fresh tokens for all combos…');
-  await Promise.all(Object.keys(comboMap).map(k => fetchToken(k)));
+  // Generate tokens enterprise by enterprise
+  log('blue', 'Generating tokens per enterprise…');
+  await fetchAllTokens();
 
   // Validate tokens
   const noToken = Object.keys(comboMap).filter(k => !comboMap[k].token);
@@ -435,7 +524,7 @@ async function runPipeline() {
   tUploaded=0;tSpyne=0;tErrors=0;updateStats();
   const vinKeys=Object.keys(vinMap);
 
-  /* Step 1 — S3 */
+  /* Step 1 — S3 ALL at once */
   for (const k of vinKeys){
     results[k].s3Status='running';updateRow(k);
     const v=vinMap[k];
@@ -457,25 +546,62 @@ async function runPipeline() {
     log('ok',`[${v.vin}] S3: ${results[k].s3Urls.length}/${v.files.length}`);
   }
 
-  /* Step 2 — Spyne */
+  /* Step 2 — Spyne: one enterprise at a time */
   setStatus('running','Submitting to Spyne…');
-  for (const k of vinKeys){
-    if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
-    results[k].spyneStatus='running';updateRow(k);
-    const v=vinMap[k],ck=`${v.ent}/${v.team}`;
-    try{
-      const resp=await callSpyne(v,results[k].s3Urls,comboMap[ck]?.bgId,comboMap[ck]?.token);
-      results[k].spyneStatus='ok';
-      results[k].dealerVinID=resp?.data?.dealerVinID||'';
-      tSpyne++;
-      log('ok',`[${v.vin}] Spyne accepted · ${results[k].dealerVinID}`);
-    }catch(err){
-      results[k].spyneStatus='error';
-      results[k].errorMsg=String(err).slice(0,80);
-      tErrors++;
-      log('err',`[${v.vin}] Spyne: ${err}`);
+
+  // Group VINs by enterprise
+  const entGroups = {};
+  vinKeys.forEach(k => {
+    const ent = vinMap[k].ent;
+    if (!entGroups[ent]) entGroups[ent] = [];
+    entGroups[ent].push(k);
+  });
+
+  for (const ent of Object.keys(entGroups)) {
+    const entVinKeys = entGroups[ent];
+    log('blue', `Processing enterprise: ${ent} (${entVinKeys.length} VINs)`);
+
+    // Get correct token for this enterprise via popup
+    const firstTeam = vinMap[entVinKeys[0]].team;
+    const spyneUrl  = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
+    const entToken  = await getEnterpriseToken(spyneUrl, ent);
+
+    if (!entToken) {
+      log('err', `[${ent}] Could not get token — skipping`);
+      entVinKeys.forEach(k => {
+        results[k].spyneStatus='error';
+        results[k].errorMsg='No enterprise token';
+        updateRow(k);
+      });
+      continue;
     }
-    updateRow(k);updateStats();
+
+    // Generate tokens for all teams in this enterprise
+    const teamKeys = [...new Set(entVinKeys.map(k => `${vinMap[k].ent}/${vinMap[k].team}`))];
+    for (const ck of teamKeys) {
+      await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
+    }
+
+    // Submit all VINs for this enterprise
+    for (const k of entVinKeys) {
+      if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
+      results[k].spyneStatus='running';updateRow(k);
+      const v=vinMap[k],ck=`${v.ent}/${v.team}`;
+      try{
+        const resp=await callSpyne(v,results[k].s3Urls,comboMap[ck]?.bgId,comboMap[ck]?.token);
+        results[k].spyneStatus='ok';
+        results[k].dealerVinID=resp?.data?.dealerVinID||'';
+        tSpyne++;
+        log('ok',`[${v.vin}] Spyne accepted · ${results[k].dealerVinID}`);
+      }catch(err){
+        results[k].spyneStatus='error';
+        results[k].errorMsg=String(err).slice(0,80);
+        tErrors++;
+        log('err',`[${v.vin}] Spyne: ${err}`);
+      }
+      updateRow(k);updateStats();
+    }
+    log('ok', `Enterprise ${ent} done ✅`);
   }
 
   document.getElementById('runBtn').disabled=false;

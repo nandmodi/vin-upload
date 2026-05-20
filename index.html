@@ -418,8 +418,8 @@ function parseFolder(files) {
   document.getElementById('tblSub').textContent=`${vks.length} VINs · ${cks.length} combos · ${total} images`;
   document.getElementById('runBtn').disabled=false;
   log('blue',`Found ${vks.length} VINs · ${cks.length} combos · ${total} images`);
-  if (loginToken) fetchAllTokens();
-  else log('warn','Paste your Spyne login token and click Save Token');
+
+
 }
 
 function renderCombos(keys) {

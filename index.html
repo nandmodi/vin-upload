@@ -246,6 +246,8 @@ function saveLoginToken() {
   document.getElementById('loginHint').className = 'hint ok';
   document.getElementById('spyneDot').style.color = '#3ecf8e';
   log('ok', 'Login token saved · userId: ' + loginUserId);
+  // Generate tokens for loaded combos
+  if(Object.keys(comboMap).length) fetchAllTokens();
 }
 
 function clearLoginToken() {
@@ -386,6 +388,76 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
   }
 }
 
+/* ─── Auto-fetch bg_id per combo ─── */
+async function fetchBgId(comboKey, tok) {
+  const combo = comboMap[comboKey];
+  const id    = comboKey.replace(/\//g,'_');
+  const bgEl  = document.getElementById('bg-'+id);
+  const stBg  = document.getElementById('stbg-'+id);
+
+  const token = tok || loginToken;
+  if (!token) return;
+  if (stBg) { stBg.textContent = 'Fetching bg…'; stBg.style.color = 'var(--amber)'; }
+
+  try {
+    const url = `https://api.spyne.ai/media-configs/v1/get-enterprise-config?enterprise_id=${encodeURIComponent(combo.ent)}&team_id=${encodeURIComponent(combo.team)}`;
+    const r = await fetch(url, {
+      headers: { 'Authorization': token, 'Accept': 'application/json' }
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error('API failed');
+
+    const defaultBg   = d.data?.default_background;
+    const teamBgs     = d.data?.team_config?.bg_config?.bgs || [];
+
+    if (defaultBg) {
+      // Use default_background directly
+      combo.bgId = String(defaultBg);
+      if (bgEl) {
+        bgEl.value = String(defaultBg);
+        bgEl.style.borderColor = 'var(--green)';
+      }
+      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
+      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${defaultBg}`);
+
+    } else if (teamBgs.length === 1) {
+      // Only one bg — use it
+      const bgId = teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || String(teamBgs[0]);
+      combo.bgId = String(bgId);
+      if (bgEl) {
+        bgEl.value = String(bgId);
+        bgEl.style.borderColor = 'var(--green)';
+      }
+      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
+      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${bgId}`);
+
+    } else if (teamBgs.length > 1) {
+      // Multiple bgs — show dropdown
+      const sel = document.createElement('select');
+      sel.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;';
+      sel.innerHTML = '<option value="">Select bg_id…</option>' +
+        teamBgs.map(bg => {
+          const bgId = bg.background_id || bg._id || bg.id || String(bg);
+          const bgName = bg.name || bg.title || bgId;
+          return `<option value="${bgId}">${bgName} (${bgId})</option>`;
+        }).join('');
+      sel.onchange = () => { combo.bgId = sel.value; };
+      if (bgEl) bgEl.parentNode.replaceChild(sel, bgEl);
+      if (stBg) { stBg.textContent = `${teamBgs.length} options`; stBg.style.color = 'var(--blue)'; }
+      log('info', `[${combo.ent}/${combo.team}] ${teamBgs.length} bg_ids available — select one`);
+
+    } else {
+      // No bg_id found — manual entry
+      if (stBg) { stBg.textContent = 'Enter manually'; stBg.style.color = 'var(--hint)'; }
+      log('warn', `[${combo.ent}/${combo.team}] No bg_id found — enter manually`);
+    }
+
+  } catch(err) {
+    if (stBg) { stBg.textContent = 'Manual entry'; stBg.style.color = 'var(--hint)'; }
+    log('warn', `[${combo.ent}/${combo.team}] bg_id fetch failed — enter manually`);
+  }
+}
+
 /* ─── Folder input ─── */
 document.getElementById('fi').addEventListener('change', function(){ parseFolder(Array.from(this.files)); });
 const dz=document.getElementById('dz');
@@ -439,12 +511,15 @@ function renderCombos(keys) {
       </div>
       <div class="combo-row">
         <label>BG ID</label>
-        <input type="text" id="bg-${id}" placeholder="e.g. 75282"
+        <input type="text" id="bg-${id}" placeholder="Fetching…"
           oninput="comboMap['${k}'].bgId=this.value.trim();" />
+        <span id="stbg-${id}" style="font-size:10px;color:var(--hint);white-space:nowrap;"></span>
       </div>`;
     wrap.appendChild(c);
   });
   document.getElementById('combosSection').style.display='block';
+
+  // bg_ids will be fetched after enterprise token is obtained in pipeline
 }
 
 function renderTable(keys) {
@@ -588,10 +663,14 @@ async function runPipeline() {
       continue;
     }
 
-    // Generate tokens for all teams in this enterprise
+    // Generate tokens and fetch bg_ids for all teams in this enterprise
     const teamKeys = [...new Set(entVinKeys.map(k => `${vinMap[k].ent}/${vinMap[k].team}`))];
     for (const ck of teamKeys) {
       await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
+      // Auto-fetch bg_id using correct enterprise token
+      if (!comboMap[ck]?.bgId) {
+        await fetchBgId(ck, entToken.tok);
+      }
     }
 
     // Submit all VINs for this enterprise

@@ -377,17 +377,94 @@ async function fetchToken(comboKey) {
   const stEl  = document.getElementById('st-'+id);
   if (stEl) { stEl.textContent='Fetching…'; stEl.className='combo-status loading'; }
 
-  try {
-    // Check localStorage for stored API token first
-    const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
-    if (stored[comboKey]) {
-      combo.token = stored[comboKey];
-      if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
-      log('ok', `[${combo.ent}/${combo.team}] Using stored API token`);
+  return new Promise((resolve) => {
+    // Open Spyne developer-hub for this exact enterprise+team
+    const spyneUrl = `https://console.spyne.ai/developer-hub?team_id=${encodeURIComponent(combo.team)}&enterprise_id=${encodeURIComponent(combo.ent)}`;
+    const popup = window.open(spyneUrl, `spyne-token-${id}`, 'width=100,height=100,left=-200,top=-200');
+
+    if (!popup) {
+      // Popup blocked - fallback to Lambda
+      fetchTokenViaLambda(comboKey).then(resolve);
       return;
     }
 
-    // Generate via Lambda
+    let resolved = false;
+    const tryGetToken = setInterval(async () => {
+      try {
+        if (popup.closed) {
+          clearInterval(tryGetToken);
+          if (!resolved) {
+            resolved = true;
+            if (stEl) { stEl.textContent='✗ Popup closed'; stEl.className='combo-status err'; }
+            resolve();
+          }
+          return;
+        }
+        // Try to read localStorage from popup
+        const tok = popup.localStorage.getItem('defaultBearerToken');
+        const ud  = popup.localStorage.getItem('userDetails');
+        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
+        if (tok && !resolved) {
+          clearInterval(tryGetToken);
+          popup.close();
+          resolved = true;
+          // Generate token via Lambda using popup's login token
+          try {
+            const r = await fetch(API_BASE + '/generate-token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                loginToken:   tok,
+                enterpriseId: combo.ent,
+                teamId:       combo.team,
+                userId:       uid
+              })
+            });
+            const d = await r.json();
+            if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
+            combo.token = d.token;
+            // Store for this session
+            const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
+            stored[comboKey] = d.token;
+            localStorage.setItem('spyneApiTokens', JSON.stringify(stored));
+            if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
+            log('ok', `[${combo.ent}/${combo.team}] Token generated ✅`);
+          } catch(err) {
+            combo.token = null;
+            if (stEl) { stEl.textContent='✗ Token failed'; stEl.className='combo-status err'; }
+            log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
+          }
+          resolve();
+        }
+      } catch(e) {
+        // Page still loading - wait
+      }
+    }, 500);
+
+    // Timeout after 15 seconds - fallback to Lambda
+    setTimeout(async () => {
+      if (!resolved) {
+        clearInterval(tryGetToken);
+        resolved = true;
+        try { popup.close(); } catch(e) {}
+        log('warn', `[${combo.ent}/${combo.team}] Popup timeout - trying Lambda`);
+        await fetchTokenViaLambda(comboKey);
+        resolve();
+      }
+    }, 15000);
+  });
+}
+
+async function fetchTokenViaLambda(comboKey) {
+  const combo = comboMap[comboKey];
+  const id    = comboKey.replace(/\//g,'_');
+  const stEl  = document.getElementById('st-'+id);
+  if (!loginToken) {
+    if (stEl) { stEl.textContent='✗ No login token'; stEl.className='combo-status err'; }
+    log('err', `[${combo.ent}/${combo.team}] No login token — click Connect Spyne`);
+    return;
+  }
+  try {
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -402,11 +479,11 @@ async function fetchToken(comboKey) {
     if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
     combo.token = d.token;
     if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='combo-status ok'; }
-    log('ok', `[${combo.ent}/${combo.team}] Token generated`);
+    log('ok', `[${combo.ent}/${combo.team}] Token via Lambda ✅`);
   } catch(err) {
     combo.token = null;
     if (stEl) { stEl.textContent='✗ Token failed'; stEl.className='combo-status err'; }
-    log('err', `[${combo.ent}/${combo.team}] Token error: ${err.message}`);
+    log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
   }
 }
 
@@ -683,29 +760,9 @@ window.addEventListener('load', () => {
     loginUserId = uid;
     localStorage.setItem('spyneLoginToken', urlToken);
     localStorage.setItem('spyneLoginUserId', uid);
-    localStorage.removeItem('spyneApiTokens'); // Clear old tokens on fresh connect
     document.getElementById('spyneDot').style.color = '#3ecf8e';
     document.getElementById('loginHint').innerHTML = '<span style="color:var(--green)">✓ Connected to Spyne!</span>';
-    log('ok', 'Spyne connected via bookmark · user: ' + uid);
-
-    // Store all tokens if provided
-    const allTokensStr = urlParams.get('allTokens');
-    if (allTokensStr) {
-      try {
-        const allTokens = JSON.parse(allTokensStr);
-        localStorage.setItem('spyneApiTokens', JSON.stringify(allTokens));
-        const count = Object.keys(allTokens).length;
-        log('ok', `${count} team tokens stored automatically ✅`);
-      } catch(e) {}
-    }
-
-    // Store single API token if provided
-    if (urlApiToken && urlEnt && urlTeam) {
-      const stored = JSON.parse(localStorage.getItem('spyneApiTokens') || '{}');
-      stored[urlEnt + '/' + urlTeam] = urlApiToken;
-      localStorage.setItem('spyneApiTokens', JSON.stringify(stored));
-      log('ok', 'API token stored for ' + urlEnt + '/' + urlTeam);
-    }
+    log('ok', 'Spyne connected · user: ' + uid);
 
     window.history.replaceState({}, '', window.location.pathname);
   } else {

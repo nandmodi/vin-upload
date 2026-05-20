@@ -228,12 +228,19 @@ function saveLoginToken() {
   const val = document.getElementById('loginTokenInput').value.trim();
   if (!val) { alert('Please paste your Spyne login token'); return; }
   loginToken = val;
-  // Extract userId
+  // Extract userId from userDetails key in localStorage first
   try {
-    const b64 = val.replace('Bearer ','');
-    const data = JSON.parse(atob(b64));
-    loginUserId = data.userId || data.user_id || '';
+    const ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
+    loginUserId = ud.userId || ud._id || '';
   } catch(e) {}
+  // Fallback: try to decode from token
+  if (!loginUserId) {
+    try {
+      const b64 = val.replace('Bearer ','');
+      const data = JSON.parse(atob(b64));
+      loginUserId = data.userId || data.user_id || '';
+    } catch(e) {}
+  }
   localStorage.setItem('spyneLoginToken', val);
   localStorage.setItem('spyneLoginUserId', loginUserId);
   document.getElementById('loginHint').textContent = '✓ Token saved!';
@@ -256,12 +263,22 @@ function clearLoginToken() {
 }
 
 function loadSavedToken() {
-  const saved = localStorage.getItem('spyneLoginToken');
+  const saved    = localStorage.getItem('spyneLoginToken');
+  const savedUid = localStorage.getItem('spyneLoginUserId') || '';
   if (saved) {
     loginToken  = saved;
-    loginUserId = localStorage.getItem('spyneLoginUserId') || '';
+    loginUserId = savedUid;
+    // If userId missing, extract from token
+    if (!loginUserId) {
+      try {
+        const b64  = saved.replace('Bearer ','');
+        const data = JSON.parse(atob(b64));
+        loginUserId = data.userId || data.user_id || '';
+        if (loginUserId) localStorage.setItem('spyneLoginUserId', loginUserId);
+      } catch(e) {}
+    }
     document.getElementById('loginTokenInput').value = saved;
-    document.getElementById('loginHint').textContent = '✓ Token loaded from browser';
+    document.getElementById('loginHint').textContent = '✓ Token loaded · userId: ' + loginUserId;
     document.getElementById('loginHint').className = 'hint ok';
     document.getElementById('spyneDot').style.color = '#3ecf8e';
     log('ok', 'Login token loaded · userId: ' + loginUserId);
@@ -562,17 +579,17 @@ window.addEventListener('load', () => {
   const urlUid   = params.get('uid') || '';
 
   if (urlToken) {
-    // Auto-save token from bookmark
-    document.getElementById('loginTokenInput').value = urlToken;
     loginToken  = urlToken;
-    loginUserId = urlUid;
+    loginUserId = urlUid || '';
+    // Save to localStorage
     localStorage.setItem('spyneLoginToken', urlToken);
-    localStorage.setItem('spyneLoginUserId', urlUid);
-    document.getElementById('loginHint').textContent = '✓ Connected via Spyne bookmark!';
+    if (loginUserId) localStorage.setItem('spyneLoginUserId', loginUserId);
+    document.getElementById('loginTokenInput').value = urlToken;
+    document.getElementById('loginHint').textContent = '✓ Connected via Spyne bookmark! userId: ' + loginUserId;
     document.getElementById('loginHint').className = 'hint ok';
     document.getElementById('spyneDot').style.color = '#3ecf8e';
     window.history.replaceState({}, '', window.location.pathname);
-    log('ok', 'Auto-connected via bookmark · userId: ' + urlUid);
+    log('ok', 'Auto-connected via bookmark · userId: ' + loginUserId);
   } else {
     loadSavedToken();
   }

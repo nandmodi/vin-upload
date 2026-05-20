@@ -246,8 +246,6 @@ function saveLoginToken() {
   document.getElementById('loginHint').className = 'hint ok';
   document.getElementById('spyneDot').style.color = '#3ecf8e';
   log('ok', 'Login token saved · userId: ' + loginUserId);
-  // Generate tokens for loaded combos
-  Object.keys(comboMap).forEach(k => fetchToken(k));
 }
 
 function clearLoginToken() {

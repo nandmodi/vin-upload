@@ -670,9 +670,9 @@ async function runPipeline() {
     for (const ck of teamKeys) {
       await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
     }
-    // Fetch bg_ids for all teams using correct enterprise token
+    // Fetch bg_ids using enterprise login token
     for (const ck of teamKeys) {
-      await fetchBgId(ck, entToken.tok);
+      await fetchBgId(ck, loginToken); // always use current login token for bg_id
     }
 
     // Final check — validate bg_ids for this enterprise

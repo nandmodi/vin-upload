@@ -615,7 +615,11 @@ async function runPipeline() {
       for(let a=1;a<=3;a++){
         try{
           const url=await uploadFile(fi);
-          results[k].s3Urls.push(url);tUploaded++;break;
+          // Only add if not already in list
+          if(!results[k].s3Urls.includes(url)){
+            results[k].s3Urls.push(url);tUploaded++;
+          }
+          break;
         }catch(err){
           if(a===3){tErrors++;log('err',`[${v.vin}] ${fi.file.name}: ${err}`);}
           else await new Promise(r=>setTimeout(r,500*a));
@@ -721,9 +725,11 @@ async function uploadFile(fi){
 }
 
 async function callSpyne(vinData,imageUrls,bgId,token){
+  // Deduplicate image URLs
+  const uniqueUrls = [...new Set(imageUrls)];
   const res=await fetch(API_BASE+'/spyne-process',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({vin:vinData.vin,imageUrls,backgroundId:bgId,spyneToken:token})
+    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token})
   });
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);

@@ -668,10 +668,10 @@ async function runPipeline() {
     const teamKeys = [...new Set(entVinKeys.map(k => `${vinMap[k].ent}/${vinMap[k].team}`))];
     for (const ck of teamKeys) {
       await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
-      // Auto-fetch bg_id using correct enterprise token
-      if (!comboMap[ck]?.bgId) {
-        await fetchBgId(ck, entToken.tok);
-      }
+    }
+    // Fetch bg_ids for all teams using correct enterprise token
+    for (const ck of teamKeys) {
+      await fetchBgId(ck, entToken.tok);
     }
 
     // Final check — validate bg_ids for this enterprise

@@ -674,6 +674,19 @@ async function runPipeline() {
       }
     }
 
+    // Final check — validate bg_ids for this enterprise
+    const missingBg = teamKeys.filter(ck => !comboMap[ck]?.bgId);
+    if (missingBg.length) {
+      missingBg.forEach(ck => {
+        const el = document.getElementById('bg-'+ck.replace(/[/]/g,'_'));
+        if(el) el.style.borderColor = 'var(--red)';
+      });
+      log('err', `[${ent}] Missing bg_id for: ${missingBg.join(', ')} — skipping`);
+      entVinKeys.forEach(k => { results[k].spyneStatus='error'; results[k].errorMsg='Missing bg_id'; updateRow(k); });
+      tErrors += entVinKeys.length; updateStats();
+      continue;
+    }
+
     // Submit all VINs for this enterprise
     for (const k of entVinKeys) {
       if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
@@ -726,7 +739,7 @@ async function callSpyne(vinData,imageUrls,bgId,token){
     // Highlight bg_id field in red if bg_id error
     if(errMsg.toLowerCase().includes('background') || errMsg.toLowerCase().includes('config')) {
       const ck = `${vinData.ent}/${vinData.team}`;
-      const id = ck.replace(/\//g,'_');
+      const id = ck.replace(/[/]/g,'_');
       const bgEl = document.getElementById('bg-'+id);
       if(bgEl) {
         bgEl.style.borderColor = 'var(--red)';

@@ -396,7 +396,8 @@ async function fetchBgId(comboKey, tok) {
   const stBg  = document.getElementById('stbg-'+id);
 
   const token = tok || loginToken;
-  if (!token) return;
+  if (!token) { log('err', `[${comboKey}] No token for bg_id fetch`); return; }
+  log('info', `[${combo.ent}/${combo.team}] Fetching bg_id…`);
   if (stBg) { stBg.textContent = 'Fetching bg…'; stBg.style.color = 'var(--amber)'; }
 
   try {

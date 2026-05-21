@@ -599,12 +599,6 @@ async function runPipeline() {
   const noToken = Object.keys(comboMap).filter(k => !comboMap[k].token);
   if (noToken.length) { alert('Could not generate tokens for:\n' + noToken.join('\n')); return; }
 
-  // Validate bgIds
-  const noBg = Object.keys(comboMap).filter(k => !comboMap[k].bgId);
-  if (noBg.length) {
-    noBg.forEach(k=>{const el=document.getElementById('bg-'+k.replace(/\//g,'_'));if(el)el.style.borderColor='var(--red)';});
-    alert('Please enter Background ID for:\n'+noBg.join('\n')); return;
-  }
 
   document.getElementById('runBtn').disabled=true;
   document.getElementById('runBtn').innerHTML='<span class="spinner"></span> Running…';

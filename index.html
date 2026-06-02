@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spyne Auto-Upload Dashboard</title>
+<style>
+  :root {
+    --bg:#0f1117;--surface:#181b23;--surface2:#1e2230;
+    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+    --text:#e8eaf0;--muted:#8b90a0;--hint:#555b6e;
+    --blue:#4f8ef7;--blue-dim:rgba(79,142,247,0.12);
+    --green:#3ecf8e;--green-dim:rgba(62,207,142,0.12);
+    --amber:#f5a623;--amber-dim:rgba(245,166,35,0.12);
+    --red:#f25757;--red-dim:rgba(242,87,87,0.12);
+    --purple:#a78bfa;
+    --radius:10px;--radius-sm:6px;
+    --mono:'SF Mono','Fira Code',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);}
+  .pill{font-size:11px;padding:2px 10px;border-radius:99px;font-weight:500;}
+  .pill.idle   {background:var(--surface2);color:var(--muted);}
+  .pill.running{background:var(--blue-dim);color:var(--blue);}
+  .pill.done   {background:var(--green-dim);color:var(--green);}
+  .pill.error  {background:var(--red-dim);color:var(--red);}
+  .layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 56px);}
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;overflow-y:auto;height:calc(100vh - 56px);position:sticky;top:56px;}
+  .main{padding:24px;overflow-y:auto;}
+  .s-title{font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;}
+  .s-section{margin-bottom:20px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--mono);}
+  .field input:focus{border-color:var(--blue);}
+  .field .hint{font-size:11px;margin-top:3px;}
+  .field .hint.ok{color:var(--green);}
+  .field .hint.err{color:var(--red);}
+  .field .hint.muted{color:var(--hint);}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 16px;border-radius:8px;
+    border:1px solid rgba(255,255,255,0.1);
+    background:linear-gradient(180deg,rgba(255,255,255,0.07) 0%,rgba(255,255,255,0.03) 100%);
+    color:var(--text);font-size:12.5px;font-family:var(--sans);font-weight:500;
+    cursor:pointer;transition:all 0.15s;white-space:nowrap;
+    box-shadow:0 1px 2px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.06);
+    letter-spacing:0.01em;
+  }
+  .btn:hover:not(:disabled){
+    background:linear-gradient(180deg,rgba(255,255,255,0.11) 0%,rgba(255,255,255,0.05) 100%);
+    border-color:rgba(255,255,255,0.18);
+    box-shadow:0 2px 8px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.08);
+    transform:translateY(-1px);
+  }
+  .btn:active:not(:disabled){transform:translateY(0) !important;box-shadow:0 1px 2px rgba(0,0,0,0.3) !important;}
+  .btn:disabled{opacity:0.35;cursor:not-allowed;}
+  .btn.full{width:100%;margin-bottom:7px;}
+  .btn.primary{
+    background:linear-gradient(180deg,#5c9aff 0%,#3b7ef8 100%);
+    border-color:rgba(91,153,255,0.5);
+    color:#fff;font-weight:600;
+    box-shadow:0 2px 10px rgba(59,126,248,0.4),inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .btn.primary:hover:not(:disabled){
+    background:linear-gradient(180deg,#74aaff 0%,#4f8ef7 100%);
+    box-shadow:0 4px 16px rgba(59,126,248,0.5),inset 0 1px 0 rgba(255,255,255,0.25);
+    transform:translateY(-1px);
+  }
+  .btn.primary:disabled{
+    background:linear-gradient(180deg,rgba(92,154,255,0.35) 0%,rgba(59,126,248,0.35) 100%);
+    box-shadow:none;border-color:rgba(91,153,255,0.2);
+  }
+  .btn.sm{
+    padding:5px 11px;font-size:11.5px;border-radius:6px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.05);
+    letter-spacing:0;
+  }
+  .btn.sm:hover:not(:disabled){transform:translateY(-1px);}
+  .drop-zone{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:22px 12px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg);}
+  .drop-zone:hover,.drop-zone.hover{border-color:var(--blue);background:var(--blue-dim);}
+  .drop-zone svg{margin:0 auto 8px;display:block;color:var(--muted);}
+  .drop-zone p{font-size:13px;color:var(--muted);}
+  .drop-zone span{font-size:11px;color:var(--hint);}
+  input[type="file"]{display:none;}
+  .combos-wrap{margin-top:8px;display:flex;flex-direction:column;gap:8px;}
+  .combo-card{background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;}
+  .combo-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .combo-ent{font-size:11px;font-weight:600;color:var(--purple);font-family:var(--mono);}
+  .combo-sep{font-size:11px;color:var(--hint);}
+  .combo-team{font-size:11px;font-weight:600;color:var(--blue);font-family:var(--mono);}
+  .combo-meta{font-size:11px;color:var(--hint);margin-left:auto;}
+  .cs{font-size:10px;padding:1px 7px;border-radius:99px;font-weight:500;}
+  .cs.ok{background:var(--green-dim);color:var(--green);}
+  .cs.err{background:var(--red-dim);color:var(--red);}
+  .cs.loading{background:var(--amber-dim);color:var(--amber);}
+  .cs.pending{background:var(--surface2);color:var(--muted);}
+  .combo-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
+  .combo-row label{font-size:11px;color:var(--muted);white-space:nowrap;width:45px;}
+  .combo-row input{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;}
+  .combo-row input:focus{border-color:var(--blue);}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .stat-lbl{font-size:11px;color:var(--muted);margin-bottom:4px;}
+  .stat-val{font-size:22px;font-weight:600;}
+  .stat-val.blue{color:var(--blue);}
+  .stat-val.green{color:var(--green);}
+  .stat-val.amber{color:var(--amber);}
+  .stat-val.red{color:var(--red);}
+  .log-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+  .log-head{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;}
+  .log-body{padding:10px 14px;font-family:var(--mono);font-size:12px;max-height:150px;overflow-y:auto;line-height:1.9;}
+  .log-body:empty::before{content:'Waiting…';color:var(--hint);}
+  .le{display:flex;gap:10px;}
+  .lt{color:var(--hint);flex-shrink:0;}
+  .lm.ok{color:var(--green);}
+  .lm.err{color:var(--red);}
+  .lm.warn{color:var(--amber);}
+  .lm.blue{color:var(--blue);}
+  .lm.info{color:var(--muted);}
+  .tbl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .tbl-title{font-size:15px;font-weight:600;}
+  .tbl-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+  .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:11px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;background:var(--surface2);}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500;white-space:nowrap;}
+  .badge.pending{background:var(--surface2);color:var(--muted);}
+  .badge.running{background:var(--amber-dim);color:var(--amber);}
+  .badge.s3ok{background:var(--blue-dim);color:var(--blue);}
+  .badge.spyneok{background:var(--green-dim);color:var(--green);}
+  .badge.error{background:var(--red-dim);color:var(--red);}
+  .tag{display:inline-block;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:1px 6px;border-radius:4px;font-family:var(--mono);}
+  .tag.ent{color:var(--purple);border-color:rgba(167,139,250,0.3);}
+  .tag.team{color:var(--blue);border-color:rgba(79,142,247,0.3);}
+  .empty{text-align:center;padding:50px 20px;color:var(--muted);}
+  .empty svg{margin:0 auto 12px;display:block;color:var(--hint);}
+  .spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,0.2);border-top-color:currentColor;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .info-box{font-size:11px;color:var(--hint);line-height:1.8;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);margin-top:10px;}
+  ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+  @media(max-width:900px){.layout{grid-template-columns:1fr;}.sidebar{height:auto;position:static;}.stats{grid-template-columns:repeat(2,1fr);}}
+  /* Delete confirm modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;visibility:visible;opacity:1;transition:opacity .2s;}
+  .modal-overlay.hidden{visibility:hidden !important;opacity:0 !important;pointer-events:none !important;z-index:-1 !important;}
+  .modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px 28px;width:360px;max-width:90vw;}
+  .modal-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+  .modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+  .modal-check{display:flex;align-items:flex-start;gap:10px;background:var(--red-dim);border:1px solid rgba(242,87,87,0.25);border-radius:var(--radius-sm);padding:12px;margin-bottom:18px;cursor:pointer;}
+  .modal-check input{margin-top:2px;accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+  .modal-check-label{font-size:12.5px;color:var(--text);line-height:1.5;}
+  .modal-check-label span{color:var(--red);font-weight:500;}
+  .modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+  /* Capsule active states */
+  #cap-folder.active{background:var(--blue);color:#fff;}
+  #cap-folder.loaded{background:var(--green-dim);color:var(--green);}
+  #cap-csv.active{background:var(--blue);color:#fff;}
+  #cap-csv.loaded{background:var(--green-dim);color:var(--green);}
+  /* Migration */
+  .mig-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+  .mig-head{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .mig-body{padding:16px;}
+  .mig-steps{display:flex;border-bottom:1px solid var(--border);}
+  .mig-step{flex:1;padding:10px 12px;font-size:11px;color:var(--hint);text-align:center;border-right:1px solid var(--border);}
+  .mig-step:last-child{border-right:none;}
+  .mig-step.active{color:var(--green);background:var(--green-dim);}
+  .mig-step.done{color:var(--muted);}
+  .mig-step-n{display:block;font-size:10px;opacity:.6;margin-bottom:2px;}
+  .prog-row{margin-bottom:10px;}
+  .prog-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;}
+  .prog-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+  .prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><div class="dot"></div>Spyne Auto-Upload Dashboard</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="spyneDot" style="font-size:12px;color:var(--hint);">● spyne</span>
+    <span class="pill idle" id="gStatus">Idle</span>
+  </div>
+</div>
+
+<div class="layout">
+<div class="sidebar">
+
+  <!-- Login Token -->
+  <div class="s-section">
+    <div class="s-title">Spyne Login</div>
+    <div class="field">
+      <label>Login Token</label>
+      <input type="password" id="loginTokenInput" placeholder="Bearer eyJ..." />
+      <div class="hint muted" id="loginHint">Paste from Spyne → F12 → Console:<br/>localStorage.getItem('defaultBearerToken')</div>
+    </div>
+    <button class="btn primary full" onclick="saveLoginToken()">✓ Save Token</button>
+    <button class="btn full" onclick="clearLoginToken()" style="color:var(--red);border-color:rgba(242,87,87,0.2);background:linear-gradient(180deg,rgba(242,87,87,0.08) 0%,rgba(242,87,87,0.04) 100%);">✕ Clear Token</button>
+  </div>
+
+  <!-- Folder + CSV capsule -->
+  <div class="s-section">
+    <div class="s-title">Select Source</div>
+    <!-- Capsule triggers file inputs appended to body on page load -->
+    <div style="display:flex;border:1px solid var(--border2);border-radius:99px;overflow:hidden;height:44px;background:var(--bg);">
+      <!-- Left: Upload Folder -->
+      <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+        <span id="cap-folder-txt">Upload Folder</span>
+      </div>
+      <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
+      <!-- Right: Upload CSV -->
+      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv / .xlsx with migration columns">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        <span id="cap-csv-txt">Upload CSV</span>
+      </div>
+    </div>
+    <!-- Sample CSV download hint -->
+    <div style="margin-top:7px;display:flex;align-items:center;justify-content:flex-end;">
+      <button onclick="downloadSampleCSV()" title="Download sample CSV template" style="display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 4px;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+        Sample CSV
+      </button>
+    </div>
+    <div id="cap-folder-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
+      <span id="cap-folder-detail"></span>
+      <button class="btn sm" onclick="resetAll()" style="font-size:10px;padding:2px 8px;">✕</button>
+    </div>
+    <div id="cap-csv-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);">
+      <span id="cap-csv-detail"></span>
+    </div>
+  </div>
+
+  <!-- Combos -->
+  <div class="s-section" id="combosSection" style="display:none;">
+    <div class="s-title">Combos — bg_id required</div>
+    <div class="combos-wrap" id="combosWrap"></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="s-section">
+    <button class="btn primary full" id="runBtn" disabled onclick="handleRunPipeline()">▶ Run Pipeline</button>
+    <button class="btn full" onclick="resetAll()" style="color:var(--muted);">↺ Reset</button>
+
+    <button class="btn full" id="exportBtn" onclick="exportCSV()" style="display:none;color:var(--green);border-color:rgba(62,207,142,0.2);background:linear-gradient(180deg,rgba(62,207,142,0.08) 0%,rgba(62,207,142,0.04) 100%);">↓ Export CSV</button>
+  </div>
+
+  <div class="info-box">
+    <strong style="color:var(--muted);">How it works:</strong><br/>
+    1. Paste Spyne login token once<br/>
+    2. Upload folder<br/>
+    3. Enter bg_id per combo<br/>
+    4. Click Run Pipeline ✅<br/><br/>
+    <strong style="color:var(--muted);">Token is saved in browser</strong><br/>
+    No need to paste again next time!
+  </div>
+
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">VINs Detected</div><div class="stat-val blue" id="sVins">0</div></div>
+    <div class="stat"><div class="stat-lbl">Images Uploaded</div><div class="stat-val green" id="sUploaded">0</div></div>
+    <div class="stat"><div class="stat-lbl">Spyne Submitted</div><div class="stat-val amber" id="sSpyne">0</div></div>
+    <div class="stat"><div class="stat-lbl">Errors</div><div class="stat-val red" id="sErrors">0</div></div>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-head"><span>Activity Log</span><button class="btn sm" onclick="clearLog()">Clear</button></div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+
+  <div class="tbl-head">
+    <div>
+      <div class="tbl-title">Processing Queue</div>
+      <div class="tbl-sub" id="tblSub">Select a folder to populate the queue</div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="emptyState" class="empty">
+      <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+      <p>No folder selected</p>
+      <span style="font-size:12px;color:var(--hint);">Select your root folder from the sidebar</span>
+    </div>
+    <table id="vinTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Enterprise</th><th>Team</th><th>VIN</th>
+          <th>BG ID</th><th>Images</th><th>Uploaded</th>
+          <th>S3</th><th>Spyne</th><th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="vinBody"></tbody>
+    </table>
+  </div>
+</div>
+
+
+  <!-- ═══ MIGRATION SECTION ═══ -->
+  <div id="migSection" style="display:none;margin-top:28px;">
+    <div class="tbl-head">
+      <div>
+        <div class="tbl-title">VIN Migration</div>
+        <div class="tbl-sub" id="migSub">Ready — click Run Pipeline to start</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn sm" onclick="migExportCSV()">&#8595; Export</button>
+        <button class="btn sm" onclick="resetMig()">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Progress bar (hidden until running) -->
+    <div id="mig-progress" style="display:none;margin-bottom:14px;">
+      <div class="prog-row">
+        <div class="prog-lbl"><span id="mig-prog-label">Running…</span><span id="mig-prog-pct">0%</span></div>
+        <div class="prog-bar"><div class="prog-fill" id="mig-prog-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Log (hidden until running) -->
+    <div id="mig-log-wrap" style="display:none;margin-bottom:14px;">
+      <div class="log-wrap">
+        <div class="log-head"><span>Migration Log</span><button class="btn sm" onclick="document.getElementById('migLog').innerHTML=''">Clear</button></div>
+        <div class="log-body" id="migLog"></div>
+      </div>
+    </div>
+
+    <!-- VIN table -->
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Old Enterprise</th><th>Old Team</th><th>VIN Name</th>
+          <th>New Enterprise</th><th>New Team</th>
+          <th>Images</th><th>Status</th>
+        </tr></thead>
+        <tbody id="migBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Hidden inputs for config — used by pipeline -->
+    <input type="hidden" id="mig-userId" value="">
+    <input type="hidden" id="mig-bgId" value="85433">
+    <input type="hidden" id="mig-catId" value="cat_d8R14zfNg">
+    <input type="hidden" id="mig-fetch-btn">
+    <input type="hidden" id="mig-run-btn">
+  </div>
+
+</div>
+</div>
+
+<script>
+const API_BASE      = 'https://ylyqnhitu9.execute-api.ap-south-1.amazonaws.com';
+const METABASE_API  = 'https://tlmz4dhc7qcljiwuca7d7nhdbu0tjevh.lambda-url.ap-south-1.on.aws';
+
+let vinMap={}, comboMap={}, results={};
+let tUploaded=0, tSpyne=0, tErrors=0;
+let loginToken=null, loginUserId=null;
+
+/* ─── Login token ─── */
+function saveLoginToken() {
+  var val = document.getElementById('loginTokenInput').value.trim();
+  if (!val) { alert('Please paste your Spyne login token'); return; }
+  var rawJwt = val.replace(/^Bearer\s+/i, '');
+  applyToken(rawJwt, '');
+  log('ok', 'Token saved manually · userId: ' + (loginUserId || 'unknown'));
+}
+
+function clearLoginToken() {
+  loginToken = null; loginUserId = null;
+
+  document.getElementById('loginTokenInput').value = '';
+  document.getElementById('loginHint').textContent = 'Token cleared';
+  document.getElementById('loginHint').className = 'hint muted';
+  document.getElementById('spyneDot').style.color = 'var(--hint)';
+  log('info', 'Login token cleared');
+}
+
+
+
+/* ─── Generate tokens enterprise by enterprise via popup ─── */
+
+async function fetchAllTokens() {
+  // Group combos by enterprise
+  const entGroups = {};
+  Object.keys(comboMap).forEach(k => {
+    const ent = comboMap[k].ent;
+    if (!entGroups[ent]) entGroups[ent] = [];
+    entGroups[ent].push(k);
+  });
+
+  // Process each enterprise one by one
+  for (const ent of Object.keys(entGroups)) {
+    const combos = entGroups[ent];
+    const firstTeam = comboMap[combos[0]].team;
+    log('blue', `Processing enterprise: ${ent}`);
+
+    // Open Spyne with this enterprise's URL to switch session
+    const spyneUrl = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
+    const entToken = await getEnterpriseToken(spyneUrl, ent);
+
+    if (!entToken) {
+      log('err', `[${ent}] Could not get enterprise token`);
+      combos.forEach(k => {
+        const stEl = document.getElementById('st-' + k.replace(/\//g,'_'));
+        if (stEl) { stEl.textContent='✗ No token'; stEl.className='cs err'; }
+      });
+      continue;
+    }
+
+    // Generate tokens for all teams in this enterprise
+    for (const comboKey of combos) {
+      await generateTokenViaLambda(comboKey, entToken.tok, entToken.uid);
+    }
+  }
+}
+
+function getEnterpriseToken(spyneUrl, ent) {
+  // NOTE: Reading popup.localStorage across origins (console.spyne.ai) always
+  // throws a SecurityError. Instead we open the popup to trigger the enterprise
+  // session switch on Spyne's side, then use our own loginToken + Lambda to
+  // generate the enterprise-scoped token. The popup is just a session switcher.
+  return new Promise((resolve) => {
+    log('info', `Switching to enterprise ${ent} via popup…`);
+
+    // If same origin (running inside console.spyne.ai via bookmark), try direct localStorage
+    if (window.location.hostname === 'console.spyne.ai') {
+      try {
+        const tok = localStorage.getItem('defaultBearerToken');
+        const ud  = localStorage.getItem('userDetails');
+        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : loginUserId;
+        if (tok) {
+          log('ok', `Using console session token for ${ent}`);
+          resolve({ tok: tok.replace('Bearer ',''), uid });
+          return;
+        }
+      } catch(e) {}
+    }
+
+    // Open popup to let Spyne switch enterprise context
+    const popup = window.open(spyneUrl, `ent_${ent}`, 'width=300,height=300,left=0,top=0');
+
+    if (!popup) {
+      log('warn', 'Popup blocked — using loginToken directly for ' + ent);
+      resolve({ tok: loginToken, uid: loginUserId });
+      return;
+    }
+
+    // Wait for popup to load (gives Spyne time to switch enterprise context)
+    // We cannot read popup.localStorage cross-origin — so we just wait then use loginToken.
+    // The Lambda /generate-token call uses loginToken + enterpriseId to mint the right token.
+    let attempts = 0;
+    const check = setInterval(() => {
+      attempts++;
+      if (popup.closed) {
+        clearInterval(check);
+        log('warn', `Popup closed early for ${ent} — using loginToken`);
+        resolve({ tok: loginToken, uid: loginUserId });
+        return;
+      }
+      if (attempts >= 8) { // 4 seconds — enough for page load
+        clearInterval(check);
+        try { popup.close(); } catch(e) {}
+        log('ok', `Enterprise ${ent} ready — generating token via Lambda`);
+        resolve({ tok: loginToken, uid: loginUserId });
+      }
+    }, 500);
+  });
+}
+
+async function fetchToken(comboKey) {
+  // Individual token fetch - used when single combo needed
+  const combo = comboMap[comboKey];
+  await generateTokenViaLambda(comboKey, loginToken, loginUserId);
+}
+
+async function generateTokenViaLambda(comboKey, tok, uid) {
+  const combo = comboMap[comboKey];
+  const id    = comboKey.replace(/\//g,'_');
+  const stEl  = document.getElementById('st-'+id);
+  if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
+  try {
+    // Always strip "Bearer " before sending to Lambda
+    const cleanTok = tok ? tok.replace(/^Bearer\s+/i, '') : '';
+    const r = await fetch(API_BASE + '/generate-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        loginToken:   cleanTok,
+        enterpriseId: combo.ent,
+        teamId:       combo.team,
+        userId:       uid || loginUserId
+      })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
+    combo.token = d.token;
+    if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='cs ok'; }
+    log('ok', `[${combo.ent}/${combo.team}] Token ready ✅`);
+  } catch(err) {
+    combo.token = null;
+    if (stEl) { stEl.textContent='✗ Failed'; stEl.className='cs err'; }
+    log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
+  }
+}
+
+/* ─── Auto-fetch bg_id per combo ─── */
+async function fetchBgId(comboKey, tok) {
+  const combo = comboMap[comboKey];
+  const id    = comboKey.replace(/\//g,'_');
+  const bgEl  = document.getElementById('bg-'+id);
+  const stBg  = document.getElementById('stbg-'+id);
+
+  const token = tok || loginToken;
+  if (!token) { log('err', `[${comboKey}] No token for bg_id fetch`); return; }
+  log('info', `[${combo.ent}/${combo.team}] Fetching bg_id…`);
+  if (stBg) { stBg.textContent = 'Fetching bg…'; stBg.style.color = 'var(--amber)'; }
+
+  try {
+    const r = await fetch(API_BASE + '/get-bg-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enterpriseId: combo.ent, teamId: combo.team, loginToken: token })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'API failed');
+
+    const defaultBg = d.defaultBackground;
+    const teamBgs   = d.teamBgs || [];
+
+    if (defaultBg) {
+      // Use default_background directly
+      combo.bgId = String(defaultBg);
+      if (bgEl) {
+        bgEl.value = String(defaultBg);
+        bgEl.style.borderColor = 'var(--green)';
+      }
+      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
+      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${defaultBg}`);
+
+    } else if (teamBgs.length === 1) {
+      // Only one bg — use it
+      const bgId = teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || String(teamBgs[0]);
+      combo.bgId = String(bgId);
+      if (bgEl) {
+        bgEl.value = String(bgId);
+        bgEl.style.borderColor = 'var(--green)';
+      }
+      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
+      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${bgId}`);
+
+    } else if (teamBgs.length > 1) {
+      // Multiple bgs — show dropdown
+      const sel = document.createElement('select');
+      sel.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;';
+      sel.innerHTML = '<option value="">Select bg_id…</option>' +
+        teamBgs.map(bg => {
+          const bgId = bg.background_id || bg._id || bg.id || String(bg);
+          const bgName = bg.name || bg.title || bgId;
+          return `<option value="${bgId}">${bgName} (${bgId})</option>`;
+        }).join('');
+      sel.onchange = () => { combo.bgId = sel.value; };
+      if (bgEl) bgEl.parentNode.replaceChild(sel, bgEl);
+      if (stBg) { stBg.textContent = `${teamBgs.length} options`; stBg.style.color = 'var(--blue)'; }
+      log('info', `[${combo.ent}/${combo.team}] ${teamBgs.length} bg_ids available — select one`);
+
+    } else {
+      // No bg_id found — manual entry
+      if (stBg) { stBg.textContent = 'Enter manually'; stBg.style.color = 'var(--hint)'; }
+      log('warn', `[${combo.ent}/${combo.team}] No bg_id found — enter manually`);
+    }
+
+  } catch(err) {
+    if (stBg) { stBg.textContent = 'Manual entry'; stBg.style.color = 'var(--hint)'; }
+    log('warn', `[${combo.ent}/${combo.team}] bg_id fetch failed — enter manually`);
+  }
+}
+
+/* ─── Folder input ─── */
+// Capsule folder handler
+function triggerFolderPick() {
+  var el = document.getElementById('fi');
+  if (el) { el.value = ''; el.click(); }
+}
+function triggerCSVPick() {
+  var el = document.getElementById('csvMigInput');
+  if (el) { el.value = ''; el.click(); }
+}
+function onFolderChange(input) {
+  parseFolder(Array.from(input.files));
+}
+// Keep old event listener for compatibility
+// fi input created dynamically in window.load — listener attached there
+
+function parseFolder(files) {
+  vinMap={}; comboMap={}; results={};
+  const IMG=/\.(jpg|jpeg|png|webp|gif|bmp|tiff?)$/i;
+  for (const f of files) {
+    const rel=f.webkitRelativePath||f.name;
+    const parts=rel.split('/').filter(Boolean);
+    if (parts.length<5||!IMG.test(parts[parts.length-1])) continue;
+    const [root,ent,team,vin]=parts;
+    const vk=`${ent}/${team}/${vin}`, ck=`${ent}/${team}`;
+    if (!vinMap[vk])    vinMap[vk]    = {ent,team,vin,files:[]};
+    if (!comboMap[ck])  comboMap[ck]  = {ent,team,bgId:'',token:null};
+    vinMap[vk].files.push({file:f, s3Key:parts.slice(1).join('/'), contentType:f.type||'image/jpeg'});
+  }
+  const vks=Object.keys(vinMap), cks=Object.keys(comboMap);
+  if (!vks.length){log('warn','No valid images found. Expected: root/enterprise/team/VIN/image.jpg');return;}
+  const total=vks.reduce((a,k)=>a+vinMap[k].files.length,0);
+  vks.forEach(k=>{results[k]={s3Urls:[],s3Status:'pending',spyneStatus:'pending',dealerVinID:'',errorMsg:''};});
+  renderCombos(cks);
+  renderTable(vks);
+  document.getElementById('sVins').textContent=vks.length;
+  document.getElementById('tblSub').textContent=`${vks.length} VINs · ${cks.length} combos · ${total} images`;
+  document.getElementById('runBtn').disabled=false;
+  log('blue',`Found ${vks.length} VINs · ${cks.length} combos · ${total} images`);
+  // Capsule: mark folder as loaded
+  const capF = document.getElementById('cap-folder');
+  if (capF) { capF.className=''; capF.style.cssText += ';background:var(--green-dim);color:var(--green);'; }
+  const capFInfo = document.getElementById('cap-folder-info');
+  const capFDetail = document.getElementById('cap-folder-detail');
+  if (capFInfo) capFInfo.style.display='flex';
+  if (capFDetail) capFDetail.textContent = vks.length + ' VINs · ' + cks.length + ' combos';
+}
+
+function renderCombos(keys) {
+  const wrap=document.getElementById('combosWrap');
+  wrap.innerHTML='';
+  keys.forEach(k=>{
+    const {ent,team}=comboMap[k];
+    const id=k.replace(/\//g,'_');
+    const vins=Object.keys(vinMap).filter(v=>v.startsWith(k+'/')).length;
+    const imgs=Object.keys(vinMap).filter(v=>v.startsWith(k+'/')).reduce((a,v)=>a+vinMap[v].files.length,0);
+    const c=document.createElement('div'); c.className='combo-card'; c.id='combo-'+id;
+    c.innerHTML=`
+      <div class="combo-header">
+        <span class="combo-ent">${esc(ent)}</span>
+        <span class="combo-sep">/</span>
+        <span class="combo-team">${esc(team)}</span>
+        <span class="combo-meta">${vins} VINs · ${imgs} imgs</span>
+        <span class="cs pending" id="st-${id}">Pending</span>
+      </div>
+      <div class="combo-row">
+        <label>BG ID</label>
+        <input type="text" id="bg-${id}" placeholder="Fetching…"
+          oninput="comboMap['${k}'].bgId=this.value.trim();" />
+        <span id="stbg-${id}" style="font-size:10px;color:var(--hint);white-space:nowrap;"></span>
+      </div>`;
+    wrap.appendChild(c);
+  });
+  document.getElementById('combosSection').style.display='block';
+
+  // bg_ids will be fetched after enterprise token is obtained in pipeline
+}
+
+function renderTable(keys) {
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('vinTable').style.display='table';
+  const tbody=document.getElementById('vinBody');
+  tbody.innerHTML='';
+  keys.forEach(k=>{
+    const v=vinMap[k],r=results[k],id=k.replace(/\//g,'_');
+    const tr=document.createElement('tr'); tr.id='row-'+id;
+    tr.innerHTML=`
+      <td><span class="tag ent">${esc(v.ent)}</span></td>
+      <td><span class="tag team">${esc(v.team)}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;">${esc(v.vin)}</td>
+      <td id="bgc-${id}" style="font-family:var(--mono);font-size:12px;color:var(--muted);">—</td>
+      <td style="color:var(--muted);">${v.files.length}</td>
+      <td id="up-${id}" style="font-size:12px;color:var(--muted);">0/${v.files.length}</td>
+      <td id="s3-${id}">${mkBadge('pending')}</td>
+      <td id="sp-${id}">${mkBadge('pending',true)}</td>
+      <td id="dt-${id}" style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function mkBadge(s,sp){
+  if(s==='pending') return '<span class="badge pending">Pending</span>';
+  if(s==='running') return '<span class="badge running"><span class="spinner"></span> Running</span>';
+  if(s==='ok')      return `<span class="badge ${sp?'spyneok':'s3ok'}">✓ Done</span>`;
+  if(s==='error')   return '<span class="badge error">✗ Error</span>';
+  return '<span class="badge pending">—</span>';
+}
+
+function updateRow(k){
+  const id=k.replace(/\//g,'_'),r=results[k];
+  const ck=`${vinMap[k].ent}/${vinMap[k].team}`;
+  const s3el=document.getElementById('s3-'+id);
+  const spel=document.getElementById('sp-'+id);
+  const dtel=document.getElementById('dt-'+id);
+  const upel=document.getElementById('up-'+id);
+  const bgel=document.getElementById('bgc-'+id);
+  if(s3el) s3el.innerHTML=mkBadge(r.s3Status,false);
+  if(spel) spel.innerHTML=mkBadge(r.spyneStatus,true);
+  if(upel) upel.textContent=`${r.s3Urls.length}/${vinMap[k].files.length}`;
+  if(bgel) bgel.textContent=comboMap[ck]?.bgId||'—';
+  if(dtel){
+    if(r.spyneStatus==='ok' && r.dealerVinID) {
+      dtel.innerHTML=`<span style="color:var(--green)">✓ Submitted</span> <span style="color:var(--hint);font-family:var(--mono);font-size:10px;">${esc(r.dealerVinID.slice(0,8))}…</span>`;
+    } else if(r.spyneStatus==='error' && r.errorMsg) {
+      // Show friendly error reason
+      let reason = r.errorMsg;
+      if(reason.includes('401')) reason = '🔑 Auth failed — token issue';
+      else if(reason.includes('BG ID') || reason.includes('background') || reason.includes('Background')) reason = '🎨 Wrong Background ID';
+      else if(reason.includes('Enterprise') || reason.includes('enterprise')) reason = '🏢 Enterprise mismatch';
+      else if(reason.includes('Team') || reason.includes('team')) reason = '👥 Team not found';
+      else if(reason.includes('400')) reason = '⚠️ Bad request';
+      else if(reason.includes('500')) reason = '🔥 Server error';
+      dtel.innerHTML=`<span style="color:var(--red);font-size:12px;" title="${esc(r.errorMsg)}">${esc(reason.slice(0,40))}</span>`;
+    } else if(r.s3Status==='ok' && r.spyneStatus==='pending') {
+      dtel.innerHTML=`<span style="color:var(--muted)">${r.s3Urls.length} images ready</span>`;
+    } else if(r.errorMsg) {
+      dtel.innerHTML=`<span style="color:var(--red)">${esc(r.errorMsg.slice(0,40))}</span>`;
+    }
+  }
+}
+
+/* ─── Pipeline ─── */
+async function runPipeline() {
+  if (!loginToken) { alert('Please paste your Spyne login token first.'); return; }
+
+  // Generate tokens enterprise by enterprise
+  log('blue', 'Generating tokens per enterprise…');
+  await fetchAllTokens();
+
+  // Validate tokens
+  const noToken = Object.keys(comboMap).filter(k => !comboMap[k].token);
+  if (noToken.length) { alert('Could not generate tokens for:\n' + noToken.join('\n')); return; }
+
+
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('runBtn').innerHTML='<span class="spinner"></span> Running…';
+  setStatus('running','Uploading to S3…');
+  clearLog();
+  tUploaded=0;tSpyne=0;tErrors=0;updateStats();
+  const vinKeys=Object.keys(vinMap);
+
+  /* Step 1 — S3 ALL at once */
+  for (const k of vinKeys){
+    results[k].s3Status='running';updateRow(k);
+    const v=vinMap[k];
+    for (const fi of v.files){
+      for(let a=1;a<=3;a++){
+        try{
+          const url=await uploadFile(fi);
+          // Only add if not already in list
+          if(!results[k].s3Urls.includes(url)){
+            results[k].s3Urls.push(url);tUploaded++;
+          }
+          break;
+        }catch(err){
+          if(a===3){tErrors++;log('err',`[${v.vin}] ${fi.file.name}: ${err}`);}
+          else await new Promise(r=>setTimeout(r,500*a));
+        }
+      }
+      updateRow(k);updateStats();
+    }
+    results[k].s3Status=results[k].s3Urls.length===0?'error':'ok';
+    if(results[k].s3Urls.length<v.files.length) results[k].errorMsg=`${v.files.length-results[k].s3Urls.length} failed`;
+    updateRow(k);updateStats();
+    log('ok',`[${v.vin}] S3: ${results[k].s3Urls.length}/${v.files.length}`);
+  }
+
+  /* Step 2 — Spyne: one enterprise at a time */
+  setStatus('running','Submitting to Spyne…');
+
+  // Group VINs by enterprise
+  const entGroups = {};
+  vinKeys.forEach(k => {
+    const ent = vinMap[k].ent;
+    if (!entGroups[ent]) entGroups[ent] = [];
+    entGroups[ent].push(k);
+  });
+
+  for (const ent of Object.keys(entGroups)) {
+    const entVinKeys = entGroups[ent];
+    log('blue', `Processing enterprise: ${ent} (${entVinKeys.length} VINs)`);
+
+    // Get correct token for this enterprise via popup
+    const firstTeam = vinMap[entVinKeys[0]].team;
+    const spyneUrl  = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
+    const entToken  = await getEnterpriseToken(spyneUrl, ent);
+
+    if (!entToken) {
+      log('err', `[${ent}] Could not get token — skipping`);
+      entVinKeys.forEach(k => {
+        results[k].spyneStatus='error';
+        results[k].errorMsg='No enterprise token';
+        updateRow(k);
+      });
+      continue;
+    }
+
+    // Generate tokens and fetch bg_ids for all teams in this enterprise
+    const teamKeys = [...new Set(entVinKeys.map(k => `${vinMap[k].ent}/${vinMap[k].team}`))];
+    for (const ck of teamKeys) {
+      await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
+    }
+    // Fetch bg_ids using enterprise login token
+    for (const ck of teamKeys) {
+      await fetchBgId(ck, loginToken); // always use current login token for bg_id
+    }
+
+    // Final check — validate bg_ids for this enterprise
+    const missingBg = teamKeys.filter(ck => !comboMap[ck]?.bgId);
+    if (missingBg.length) {
+      missingBg.forEach(ck => {
+        const el = document.getElementById('bg-'+ck.replace(/[/]/g,'_'));
+        if(el) el.style.borderColor = 'var(--red)';
+      });
+      log('err', `[${ent}] Missing bg_id for: ${missingBg.join(', ')} — skipping`);
+      entVinKeys.forEach(k => { results[k].spyneStatus='error'; results[k].errorMsg='Missing bg_id'; updateRow(k); });
+      tErrors += entVinKeys.length; updateStats();
+      continue;
+    }
+
+    // Submit all VINs for this enterprise
+    for (const k of entVinKeys) {
+      if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
+      results[k].spyneStatus='running';updateRow(k);
+      const v=vinMap[k],ck=`${v.ent}/${v.team}`;
+      try{
+        const resp=await callSpyne(v,results[k].s3Urls,comboMap[ck]?.bgId,comboMap[ck]?.token);
+        results[k].spyneStatus='ok';
+        results[k].dealerVinID=resp?.data?.dealerVinID||'';
+        tSpyne++;
+        log('ok',`[${v.vin}] Spyne accepted · ${results[k].dealerVinID}`);
+      }catch(err){
+        results[k].spyneStatus='error';
+        results[k].errorMsg=String(err).slice(0,80);
+        tErrors++;
+        log('err',`[${v.vin}] Spyne: ${err}`);
+      }
+      updateRow(k);updateStats();
+    }
+    log('ok', `Enterprise ${ent} done ✅`);
+  }
+
+  document.getElementById('runBtn').disabled=false;
+  document.getElementById('runBtn').innerHTML='▶ Run Pipeline';
+  document.getElementById('exportBtn').style.display='';
+  setStatus('done',`${tSpyne} submitted · ${tErrors} errors`);
+  log('blue',`Done · ${tSpyne} submitted · ${tErrors} errors`);
+}
+
+async function uploadFile(fi){
+  const r1=await fetch(API_BASE+'/get-upload-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s3Key:fi.s3Key,contentType:fi.contentType})});
+  const d1=await r1.json();
+  if(!r1.ok) throw new Error(d1.error||'Failed to get URL');
+  const r2=await fetch(d1.uploadUrl,{method:'PUT',headers:{'Content-Type':fi.contentType},body:fi.file});
+  if(!r2.ok) throw new Error(`S3 HTTP ${r2.status}`);
+  return d1.publicUrl;
+}
+
+async function callSpyne(vinData,imageUrls,bgId,token){
+  // Deduplicate image URLs
+  const uniqueUrls = [...new Set(imageUrls)];
+  const res=await fetch(API_BASE+'/spyne-process',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token})
+  });
+  const data=await res.json();
+  if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+
+  // Check for bg_id error even on success response
+  if(data?.data?.validationSummary?.isRequestRejected) {
+    const errMsg = data?.data?.validationSummary?.displayError?.message || 'Validation error';
+    // Highlight bg_id field in red if bg_id error
+    if(errMsg.toLowerCase().includes('background') || errMsg.toLowerCase().includes('config')) {
+      const ck = `${vinData.ent}/${vinData.team}`;
+      const id = ck.replace(/[/]/g,'_');
+      const bgEl = document.getElementById('bg-'+id);
+      if(bgEl) {
+        bgEl.style.borderColor = 'var(--red)';
+        bgEl.title = errMsg;
+      }
+      throw new Error('Wrong BG ID: ' + errMsg);
+    }
+  }
+  return data;
+}
+
+function exportCSV(){
+  const rows=[['Enterprise','Team','VIN','BG ID','Images','Uploaded','S3','Spyne','DealerVinID','Error']];
+  Object.keys(vinMap).forEach(k=>{
+    const v=vinMap[k],r=results[k]||{},ck=`${v.ent}/${v.team}`;
+    rows.push([v.ent,v.team,v.vin,comboMap[ck]?.bgId||'',v.files.length,r.s3Urls?.length||0,r.s3Status,r.spyneStatus,r.dealerVinID||'',r.errorMsg||'']);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='spyne-results.csv';a.click();
+}
+
+function resetAll(){
+  vinMap={};comboMap={};results={};
+  tUploaded=0;tSpyne=0;tErrors=0;updateStats();
+  document.getElementById('fi').value='';
+  // Reset capsule folder state
+  const capF = document.getElementById('cap-folder');
+  if (capF) capF.style.background='';
+  const capFI = document.getElementById('cap-folder-info');
+  if (capFI) capFI.style.display='none';
+  document.getElementById('combosSection').style.display='none';
+  document.getElementById('combosWrap').innerHTML='';
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('exportBtn').style.display='none';
+  document.getElementById('emptyState').style.display='block';
+  document.getElementById('vinTable').style.display='none';
+  document.getElementById('vinBody').innerHTML='';
+  document.getElementById('sVins').textContent='0';
+  document.getElementById('tblSub').textContent='Select a folder to populate the queue';
+  setStatus('idle','');clearLog();
+}
+
+function updateStats(){
+  document.getElementById('sUploaded').textContent=tUploaded;
+  document.getElementById('sSpyne').textContent=tSpyne;
+  document.getElementById('sErrors').textContent=tErrors;
+}
+function setStatus(t,x){const p=document.getElementById('gStatus');p.className='pill '+t;p.textContent=x||(t.charAt(0).toUpperCase()+t.slice(1));}
+function log(type,msg){
+  const body=document.getElementById('logBody');
+  const now=new Date();
+  const t=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const e=document.createElement('div');e.className='le';
+  e.innerHTML=`<span class="lt">${t}</span><span class="lm ${type}">${esc(msg)}</span>`;
+  body.appendChild(e);body.scrollTop=body.scrollHeight;
+}
+function clearLog(){document.getElementById('logBody').innerHTML='';}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function pad(n){return String(n).padStart(2,'0');}
+
+window.addEventListener('load', () => {
+  // Create file inputs directly on body — most reliable cross-browser approach
+  var fiInput = document.createElement('input');
+  fiInput.type = 'file'; fiInput.id = 'fi';
+  fiInput.setAttribute('webkitdirectory', '');
+  fiInput.setAttribute('multiple', '');
+  fiInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  fiInput.addEventListener('change', function(){ onFolderChange(this); });
+  document.body.appendChild(fiInput);
+
+  var csvInput = document.createElement('input');
+  csvInput.type = 'file'; csvInput.id = 'csvMigInput';
+  csvInput.accept = '.csv,.xlsx,.xls';
+  csvInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  csvInput.addEventListener('change', function(){ if(this.files[0]) handleMigCSV(this.files[0]); });
+  document.body.appendChild(csvInput);
+
+
+  // ── Priority 1: Token from URL params (bookmark) ──
+  const params   = new URLSearchParams(window.location.search);
+  const urlToken = params.get('loginToken') || params.get('token');
+  const urlUid   = params.get('uid') || '';
+
+  if (urlToken) {
+    applyToken(urlToken.replace(/^Bearer\s+/i, ''), urlUid);
+    window.history.replaceState({}, '', window.location.pathname);
+    log('ok', 'Token loaded from URL · userId: ' + loginUserId);
+    return;
+  }
+
+  // ── Priority 2: Auto-fetch from localStorage (works when running inside console.spyne.ai) ──
+  try {
+    var stored = localStorage.getItem('defaultBearerToken');
+    if (stored) {
+      var rawToken = stored.replace(/^Bearer\s+/i, '');
+      var ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      var uid = ud.userId || ud._id || '';
+      applyToken(rawToken, uid);
+      log('ok', 'Token auto-loaded from browser session · userId: ' + loginUserId);
+      return;
+    }
+  } catch(e) {
+    // Not running inside console.spyne.ai — localStorage not accessible
+  }
+
+  // ── No token found — show hint ──
+  document.getElementById('loginHint').textContent = 'Paste token manually, or open this tool from console.spyne.ai for auto-login';
+  document.getElementById('loginHint').className = 'hint muted';
+});
+
+function applyToken(rawJwt, uid) {
+  loginToken = rawJwt;
+
+  // Extract userId from JWT payload if not provided
+  if (!uid) {
+    try {
+      var parts = rawJwt.split('.');
+      if (parts.length >= 2) {
+        var b64 = parts[1].replace(/-/g,'+').replace(/_/g,'/');
+        var padded = b64 + '==='.slice((b64.length + 3) % 4 ? (b64.length + 3) % 4 : 4);
+        var payload = JSON.parse(atob(padded));
+        uid = payload.userId || payload.user_id || payload.sub || payload._id || payload.id || '';
+      }
+    } catch(e) {}
+  }
+  loginUserId = uid;
+
+  // Update UI
+  document.getElementById('loginTokenInput').value = rawJwt;
+  document.getElementById('loginHint').textContent = '✓ Token loaded · userId: ' + (uid || 'unknown');
+  document.getElementById('loginHint').className = 'hint ok';
+  document.getElementById('spyneDot').style.color = '#3ecf8e';
+  if (Object.keys(comboMap).length) fetchAllTokens();
+}
+
+
+
+
+
+/* ════════════════════════════════════════════
+   MIGRATION — CSV → Metabase → bulk/process
+   ════════════════════════════════════════════ */
+// Metabase is called via Lambda proxy to avoid CORS
+// Direct URL kept only as reference — not used in browser fetch
+// const METABASE_DIRECT = 'https://metabase.spyne.ai/api/public/card/507971b0.../query/json';
+const MIG_COLS = ['old_enterprise_id','old_teamid','vin_name','new_enterprise_id','new_teamid'];
+
+let migRows = [];     // parsed CSV rows
+let migData = [];     // { row, images:[{url,category}] }
+
+function migLog(type, msg) {
+  const body = document.getElementById('migLog');
+  const now = new Date();
+  const t = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  const e = document.createElement('div'); e.className = 'le';
+  e.innerHTML = '<span class="lt">'+t+'</span><span class="lm '+type+'">'+esc(msg)+'</span>';
+  body.appendChild(e); body.scrollTop = body.scrollHeight;
+}
+
+function setMigStep(n) {
+  for (var i = 1; i <= 4; i++) {
+    var el = document.getElementById('ms'+i);
+    if (!el) continue;
+    el.className = 'mig-step' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+}
+
+function setMigProg(pct, label) {
+  document.getElementById('mig-progress').style.display = '';
+  document.getElementById('mig-prog-fill').style.width = pct + '%';
+  document.getElementById('mig-prog-pct').textContent = pct + '%';
+  if (label) document.getElementById('mig-prog-label').textContent = label;
+}
+
+function handleMigCSV(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var wb;
+    try {
+      wb = file.name.endsWith('.csv')
+        ? XLSX.read(e.target.result, { type: 'string' })
+        : XLSX.read(e.target.result, { type: 'array' });
+    } catch(ex) { alert('Failed to parse file: ' + ex.message); return; }
+
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!raw.length) { alert('File is empty'); return; }
+
+    // Normalize headers
+    var rows = raw.map(function(r) {
+      var out = {};
+      Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s\-]/g,'_')] = r[k]; });
+      return out;
+    });
+
+    // Validate required columns
+    var missing = MIG_COLS.filter(function(c) { return !(c in rows[0]); });
+    if (missing.length) {
+      alert('Missing columns: ' + missing.join(', ') + '\nFound: ' + Object.keys(rows[0]).join(', '));
+      return;
+    }
+
+    migRows = rows;
+    migData = [];
+    renderMigTable(rows);
+
+    // Show migration section
+    document.getElementById('migSection').style.display = '';
+    document.getElementById('migSub').textContent = rows.length + ' rows loaded — click Run Pipeline to start';
+
+    // Enable Run Pipeline button
+    document.getElementById('runBtn').disabled = false;
+
+    // Capsule: mark CSV as loaded (green)
+    var capC = document.getElementById('cap-csv');
+    if (capC) { capC.style.background = 'var(--green-dim)'; capC.style.color = 'var(--green)'; }
+    var capCInfo = document.getElementById('cap-csv-info');
+    var capCDetail = document.getElementById('cap-csv-detail');
+    if (capCInfo) capCInfo.style.display = 'block';
+    if (capCDetail) capCDetail.textContent = '✓ ' + rows.length + ' rows · ' + file.name;
+
+    // Scroll to show migration section
+    document.getElementById('migSection').scrollIntoView({ behavior: 'smooth' });
+  };
+  file.name.endsWith('.csv') ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+}
+
+function renderMigTable(rows) {
+  var tb = document.getElementById('migBody');
+  tb.innerHTML = '';
+  rows.forEach(function(r, i) {
+    var tr = document.createElement('tr'); tr.id = 'migrow-'+i;
+    tr.innerHTML =
+      '<td><span class="tag ent">'+esc(r.old_enterprise_id)+'</span></td>' +
+      '<td><span class="tag team">'+esc(r.old_teamid)+'</span></td>' +
+      '<td style="font-family:var(--mono);font-size:12px;">'+esc(r.vin_name)+'</td>' +
+      '<td><span class="tag ent">'+esc(r.new_enterprise_id)+'</span></td>' +
+      '<td><span class="tag team">'+esc(r.new_teamid)+'</span></td>' +
+      '<td id="mig-imgs-'+i+'" style="color:var(--hint)">—</td>' +
+      '<td id="mig-status-'+i+'"><span class="badge pending">Pending</span></td>';
+    tb.appendChild(tr);
+  });
+}
+
+async function migFetchImages() {
+  if (!migRows.length) return;
+
+  // Deduplicate queries by old_enterprise + old_team + vin_name
+  var queryMap = {};
+  migRows.forEach(function(r, i) {
+    var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
+    if (!queryMap[qk]) queryMap[qk] = { row: r, indices: [], images: null };
+    queryMap[qk].indices.push(i);
+  });
+
+  var qKeys = Object.keys(queryMap);
+  var done = 0;
+
+  migLog('blue', 'Querying Metabase for ' + qKeys.length + ' unique VINs…');
+
+  // ── BATCH: send ALL unique rows to Lambda in one POST ──
+  migLog('info', 'Sending ' + qKeys.length + ' VINs to Lambda proxy…');
+  setMigProg(5, '📡 Calling Lambda — ' + qKeys.length + ' VINs…');
+
+  var batchRows = qKeys.map(function(qk) {
+    var r = queryMap[qk].row;
+    return {
+      enterprise_id: r.old_enterprise_id,
+      team_id:       r.old_teamid,
+      sku_name:      r.vin_name
+    };
+  });
+
+  try {
+    var batchResp = await fetch(METABASE_API + '/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: batchRows })
+    });
+    if (!batchResp.ok) {
+      var errText = await batchResp.text();
+      throw new Error('Lambda HTTP ' + batchResp.status + ': ' + errText.slice(0,120));
+    }
+    var batchData = await batchResp.json();
+    // batchData = [ { enterprise_id, team_id, sku_name, images:[{url,category}] }, ... ]
+    migLog('ok', 'Lambda returned results for ' + batchData.length + ' VINs');
+
+    batchData.forEach(function(item) {
+      var qk = item.enterprise_id + '||' + item.team_id + '||' + item.sku_name;
+      if (!queryMap[qk]) return;
+      queryMap[qk].images = item.images || [];
+      queryMap[qk].dealerVinId = item.dealerVinId || '';
+    });
+
+  } catch(e) {
+    migLog('err', 'Lambda fetch failed: ' + e.message);
+    // Mark all as error
+    qKeys.forEach(function(qk) { queryMap[qk].images = []; });
+  }
+
+  // Update table rows with results
+  for (var qi = 0; qi < qKeys.length; qi++) {
+    var qk = qKeys[qi];
+    var qe = queryMap[qk];
+    var imgs = qe.images || [];
+    migLog(imgs.length ? 'ok' : 'warn', queryMap[qk].row.vin_name + ': ' + imgs.length + ' images');
+    qe.indices.forEach(function(i) {
+      document.getElementById('mig-imgs-'+i).textContent = imgs.length;
+      document.getElementById('mig-status-'+i).innerHTML = imgs.length
+        ? '<span class="badge s3ok">Ready</span>'
+        : '<span class="badge error">No images</span>';
+    });
+    done++;
+    setMigProg(5 + Math.round(done/qKeys.length*30), 'Metabase: ' + done + ' / ' + qKeys.length + ' VINs processed');
+  }
+
+  // Build migData for all rows
+  migData = migRows.map(function(r, i) {
+    var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
+    var qEntry = queryMap[qk] || {};
+    return { row: r, idx: i, images: qEntry.images || [], dealerVinId: qEntry.dealerVinId || '' };
+  });
+
+  var withImages = migData.filter(function(d) { return d.images.length > 0; }).length;
+  migLog('blue', 'Fetch complete — ' + withImages + '/' + migRows.length + ' rows have images');
+  document.getElementById('migSub').textContent = withImages + ' rows ready for upload';
+}
+
+// Router — decides which pipeline to run based on what is loaded
+function handleRunPipeline() {
+  // If CSV migration rows are loaded → migration flow
+  if (migRows.length > 0) {
+    migRunPipeline();
+    return;
+  }
+  // Otherwise → original folder upload pipeline
+  runPipeline();
+}
+
+function migRunPipeline() {
+  if (!loginToken) { alert('Paste your Spyne login token first.'); return; }
+  if (!migRows.length) { alert('Please upload a CSV file first.'); return; }
+  // Show modal with CSV row count — images fetched AFTER confirm
+  showDeleteModal(migRows.length);
+}
+
+function showDeleteModal(vinCount) {
+  // Remove any existing modal
+  var existing = document.getElementById('deleteModal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'deleteModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px 28px;width:360px;max-width:90vw;">' +
+      '<div style="font-size:15px;font-weight:600;margin-bottom:6px;">Run Migration</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;">Upload <strong style="color:var(--text)">' + vinCount + ' VINs</strong> from CSV to new accounts.<br>Images fetched from Metabase automatically.</div>' +
+      '<label style="display:flex;align-items:flex-start;gap:10px;background:var(--red-dim);border:1px solid rgba(242,87,87,0.25);border-radius:var(--radius-sm);padding:12px;margin-bottom:18px;cursor:pointer;">' +
+        '<input type="checkbox" id="deleteChk" style="margin-top:2px;accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0;">' +
+        '<div style="font-size:12.5px;color:var(--text);line-height:1.5;"><span style="color:var(--red);font-weight:500;">Delete VINs from old enterprise/team</span><br>after successful upload. This cannot be undone.</div>' +
+      '</label>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button class="btn sm" onclick="closeDeleteModal()">Cancel</button>' +
+        '<button class="btn sm primary" onclick="confirmAndRun()">▶ Run Pipeline</button>' +
+      '</div>' +
+    '</div>';
+  modal.addEventListener('click', function(e) { if (e.target === modal) closeDeleteModal(); });
+  document.body.appendChild(modal);
+}
+
+function closeDeleteModal() {
+  var modal = document.getElementById('deleteModal');
+  if (modal) modal.remove();
+}
+
+async function confirmAndRun() {
+  var shouldDelete = document.getElementById('deleteChk').checked;
+  closeDeleteModal();
+
+  // Show progress + log
+  document.getElementById('mig-progress').style.display = '';
+  var logWrap = document.getElementById('mig-log-wrap');
+  if (logWrap) logWrap.style.display = '';
+  document.getElementById('migSection').style.display = '';
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
+
+  // ── Phase 1: Fetch images from Metabase ──
+  setMigProg(0, '📡 Phase 1/3 — Fetching images from Metabase…');
+  migLog('blue', '━━ Phase 1: Fetching images from Metabase');
+  await migFetchImages();
+
+  var toRun = migData.filter(function(d) { return d.images.length > 0; });
+  if (!toRun.length) {
+    migLog('err', '✗ No images found in Metabase — check your enterprise_id, team_id, vin_name');
+    setMigProg(100, '✗ No images found');
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
+    return;
+  }
+
+  // ── Phase 2: Upload via same spyne-process Lambda as folder upload ──
+  migLog('blue', '━━ Phase 2: Uploading to new accounts');
+  setMigProg(40, '⬆ Phase 2/3 — Uploading to new accounts…');
+
+  var done  = 0;
+  var total = toRun.length;
+
+  for (var vi = 0; vi < toRun.length; vi++) {
+    var d       = toRun[vi];
+    var vinName = d.row.vin_name;
+    var newTeam = d.row.new_teamid;
+    var imageUrls = d.images.map(function(img){ return img.url; });
+
+    migLog('info', 'Uploading ' + vinName + ' → ' + d.row.new_enterprise_id);
+
+    // Get token for new enterprise (use loginToken — Lambda handles it)
+    // Use same spyne-process Lambda as original upload flow
+    // bgId fetched via get-bg-id Lambda for new enterprise
+    var bgId = '';
+    try {
+      var bgResp = await fetch(API_BASE + '/get-bg-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          loginToken:   loginToken
+        })
+      });
+      var bgData = await bgResp.json();
+      bgId = bgData.defaultBackground || (bgData.teamBgs && bgData.teamBgs[0] && (bgData.teamBgs[0].background_id || bgData.teamBgs[0]._id)) || '';
+      if (bgId) migLog('ok', '  bg_id: ' + bgId);
+      else migLog('warn', '  No bg_id found — using empty');
+    } catch(be) {
+      migLog('warn', '  bg_id fetch failed: ' + be.message);
+    }
+
+    // Get enterprise token via generate-token Lambda
+    var entToken = loginToken;
+    try {
+      var tokResp = await fetch(API_BASE + '/generate-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginToken:   loginToken,
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          userId:       loginUserId
+        })
+      });
+      var tokData = await tokResp.json();
+      if (tokData.token) { entToken = tokData.token; migLog('ok', '  token ready for ' + d.row.new_enterprise_id); }
+    } catch(te) {
+      migLog('warn', '  Token fetch failed, using loginToken');
+    }
+
+    // Call same spyne-process Lambda as original upload
+    try {
+      var spyneResp = await fetch(API_BASE + '/spyne-process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vin:          vinName,
+          teamId:       newTeam,
+          imageUrls:    imageUrls,
+          backgroundId: bgId,
+          spyneToken:   entToken
+        })
+      });
+      var spyneData = await spyneResp.json();
+      if (!spyneResp.ok) throw new Error(spyneData.error || 'HTTP ' + spyneResp.status);
+
+      migLog('ok', '✓ ' + vinName + ' submitted');
+      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
+
+      // Delete from old enterprise only if upload succeeded
+      if (shouldDelete) {
+        var dealerVinId = d.dealerVinId || '';
+        if (!dealerVinId) {
+          migLog('warn', '⚠ ' + vinName + ': no dealerVinId — skipping delete');
+        } else {
+          try {
+            var delResp = await fetch(METABASE_API + '/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action:      'delete-vin',
+                dealerVinId: dealerVinId,
+                userId:      loginUserId,
+                token:       loginToken
+              })
+            });
+            var delData = await delResp.json();
+            if (!delResp.ok || delData.error) throw new Error(delData.error || delData.message || 'HTTP ' + delResp.status);
+            migLog('ok', '🗑 Deleted ' + vinName + ' from ' + d.row.old_enterprise_id);
+            document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
+          } catch(de) {
+            migLog('warn', '⚠ Delete failed ' + vinName + ': ' + de.message);
+          }
+        }
+      }
+
+    } catch(e) {
+      migLog('err', '✗ ' + vinName + ': ' + e.message);
+      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
+    }
+
+    done++;
+    setMigProg(40 + Math.round(done/total*55), '⬆ ' + done + ' / ' + total + ' VINs');
+  }
+
+  migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));
+  setMigProg(100, '✅ Migration complete!');
+  document.getElementById('migSub').textContent = 'Migration complete ✓';
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
+}
+
+function migExportCSV() {
+  var lines = ['vin_name,old_enterprise_id,old_team_id,new_enterprise_id,new_team_id,dealer_vin_id,images,status'];
+  migData.forEach(function(d) {
+    var r = d.row;
+    var statusEl = document.getElementById('mig-status-'+d.idx);
+    var status = statusEl ? statusEl.textContent.trim() : '';
+    lines.push([r.vin_name, r.old_enterprise_id, r.old_teamid, r.new_enterprise_id, r.new_teamid, d.dealerVinId||'', d.images.length, status]
+      .map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
+  });
+  var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
+  var a = document.createElement('a');
+  a.setAttribute('href', dataUri);
+  a.setAttribute('download', 'migration-results.csv');
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); }, 200);
+}
+
+function resetMig() {
+  migRows = []; migData = [];
+  var migSection = document.getElementById('migSection');
+  if (migSection) migSection.style.display = 'none';
+  var migBody = document.getElementById('migBody');
+  if (migBody) migBody.innerHTML = '';
+  var migLog = document.getElementById('migLog');
+  if (migLog) migLog.innerHTML = '';
+  var migProg = document.getElementById('mig-progress');
+  if (migProg) migProg.style.display = 'none';
+  var logWrap = document.getElementById('mig-log-wrap');
+  if (logWrap) logWrap.style.display = 'none';
+  document.getElementById('csvMigInput').value = '';
+  // Re-disable Run Pipeline if no folder loaded either
+  if (!Object.keys(vinMap).length) {
+    document.getElementById('runBtn').disabled = true;
+  }
+  // Reset capsule CSV state
+  var capC = document.getElementById('cap-csv');
+  if (capC) { capC.style.background = ''; capC.style.color = ''; }
+  var capCInfo = document.getElementById('cap-csv-info');
+  if (capCInfo) capCInfo.style.display = 'none';
+}
+
+function downloadSampleCSV() {
+  // BOM prefix ensures Excel opens CSV with correct encoding
+  var BOM = '\uFEFF';
+  var rows = [
+    ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68'],
+  ];
+  var csv = BOM + rows.map(function(r) {
+    return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
+  }).join('\r\n');
+
+  try {
+    // Method 1: Blob (preferred)
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href   = url;
+    a.setAttribute('download', 'migration_sample.csv');
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  } catch(e) {
+    // Method 2: data URI fallback
+    var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    var a2 = document.createElement('a');
+    a2.setAttribute('href', dataUri);
+    a2.setAttribute('download', 'migration_sample.csv');
+    a2.style.display = 'none';
+    document.body.appendChild(a2);
+    a2.click();
+    setTimeout(function(){ document.body.removeChild(a2); }, 500);
+  }
+}
+
+</script>
+<!-- Modal injected dynamically via showDeleteModal() -->
+</body>
+</html>

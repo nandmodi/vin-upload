@@ -672,9 +672,7 @@ function downloadSampleCSV() {
   <!-- Folder + CSV capsule -->
   <div class="s-section">
     <div class="s-title">Select Source</div>
-    <!-- Hidden file inputs OUTSIDE the capsule -->
-    <input type="file" id="fi" webkitdirectory multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="onFolderChange(this)">
-    <input type="file" id="csvMigInput" accept=".csv,.xlsx,.xls" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="handleMigCSV(this.files[0])">
+    <!-- Capsule triggers file inputs appended to body on page load -->
     <div style="display:flex;border:1px solid var(--border2);border-radius:99px;overflow:hidden;height:44px;background:var(--bg);">
       <!-- Left: Upload Folder -->
       <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
@@ -1052,19 +1050,17 @@ async function fetchBgId(comboKey, tok) {
 // Capsule folder handler
 function triggerFolderPick() {
   var el = document.getElementById('fi');
-  el.value = '';
-  el.click();
+  if (el) { el.value = ''; el.click(); }
 }
 function triggerCSVPick() {
   var el = document.getElementById('csvMigInput');
-  el.value = '';
-  el.click();
+  if (el) { el.value = ''; el.click(); }
 }
 function onFolderChange(input) {
   parseFolder(Array.from(input.files));
 }
 // Keep old event listener for compatibility
-document.getElementById('fi').addEventListener('change', function(){ parseFolder(Array.from(this.files)); });
+// fi input created dynamically in window.load — listener attached there
 
 function parseFolder(files) {
   vinMap={}; comboMap={}; results={};
@@ -1408,6 +1404,22 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 function pad(n){return String(n).padStart(2,'0');}
 
 window.addEventListener('load', () => {
+  // Create file inputs directly on body — most reliable cross-browser approach
+  var fiInput = document.createElement('input');
+  fiInput.type = 'file'; fiInput.id = 'fi';
+  fiInput.setAttribute('webkitdirectory', '');
+  fiInput.setAttribute('multiple', '');
+  fiInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  fiInput.addEventListener('change', function(){ onFolderChange(this); });
+  document.body.appendChild(fiInput);
+
+  var csvInput = document.createElement('input');
+  csvInput.type = 'file'; csvInput.id = 'csvMigInput';
+  csvInput.accept = '.csv,.xlsx,.xls';
+  csvInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  csvInput.addEventListener('change', function(){ if(this.files[0]) handleMigCSV(this.files[0]); });
+  document.body.appendChild(csvInput);
+
 
   // ── Priority 1: Token from URL params (bookmark) ──
   const params   = new URLSearchParams(window.location.search);

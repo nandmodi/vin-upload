@@ -1300,33 +1300,39 @@ async function confirmAndRun() {
 
     migLog('info', 'Uploading ' + vinName + ' → ' + d.row.new_enterprise_id);
 
-    // Step A: Get enterprise token for NEW enterprise FIRST
-    // (same as original runPipeline → getEnterpriseToken → generateTokenViaLambda)
+    // Step A: Get enterprise token for NEW enterprise
+    // Uses same popup → generateTokenViaLambda flow as original runPipeline
     var entToken = loginToken;
+    migLog('info', '  Getting token for enterprise: ' + d.row.new_enterprise_id);
     try {
-      var tokResp = await fetch(API_BASE + '/generate-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loginToken:   loginToken,
-          enterpriseId: d.row.new_enterprise_id,
-          teamId:       newTeam,
-          userId:       loginUserId
-        })
-      });
-      var tokData = await tokResp.json();
-      if (tokData.token) {
-        entToken = tokData.token;
-        migLog('ok', '  ✓ Token ready for ' + d.row.new_enterprise_id);
-      } else {
-        migLog('warn', '  Token not returned — using loginToken');
+      var spyneUrl = 'https://console.spyne.ai/developer-hub?enterprise_id=' 
+                   + encodeURIComponent(d.row.new_enterprise_id) 
+                   + '&team_id=' + encodeURIComponent(newTeam);
+      var entResult = await getEnterpriseToken(spyneUrl, d.row.new_enterprise_id);
+      if (entResult && entResult.tok) {
+        // Now generate proper scoped token via Lambda
+        var tokResp = await fetch(API_BASE + '/generate-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loginToken:   entResult.tok,
+            enterpriseId: d.row.new_enterprise_id,
+            teamId:       newTeam,
+            userId:       entResult.uid || loginUserId
+          })
+        });
+        var tokData = await tokResp.json();
+        if (tokData.token) {
+          entToken = tokData.token;
+          migLog('ok', '  ✓ Token ready for ' + d.row.new_enterprise_id);
+        }
       }
     } catch(te) {
-      migLog('warn', '  Token fetch failed: ' + te.message);
+      migLog('warn', '  Token fetch failed: ' + te.message + ' — using loginToken');
     }
 
-    // Step B: Get bg_id for NEW enterprise using the NEW enterprise token
-    // (same as original fetchBgId — uses enterprise token, not loginToken)
+    // Step B: Get bg_id for NEW enterprise using enterprise login token
+    // Same as original: fetchBgId always uses loginToken (current session token)
     var bgId = '';
     try {
       var bgResp = await fetch(API_BASE + '/get-bg-id', {
@@ -1335,21 +1341,21 @@ async function confirmAndRun() {
         body: JSON.stringify({
           enterpriseId: d.row.new_enterprise_id,
           teamId:       newTeam,
-          loginToken:   entToken   // ← use NEW enterprise token, not loginToken
+          loginToken:   loginToken
         })
       });
       var bgData = await bgResp.json();
-      // Exact same logic as fetchBgId in original flow
+      migLog('info', '  get-bg-id response: ' + JSON.stringify(bgData).slice(0, 200));
       var defaultBg = bgData.defaultBackground;
       var teamBgs   = bgData.teamBgs || [];
       if (defaultBg) {
         bgId = String(defaultBg);
-        migLog('ok', '  ✓ bg_id (default): ' + bgId);
+        migLog('ok', '  ✓ bg_id: ' + bgId);
       } else if (teamBgs.length >= 1) {
         bgId = String(teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || teamBgs[0]);
-        migLog('ok', '  ✓ bg_id (team[0]): ' + bgId);
+        migLog('ok', '  ✓ bg_id (team): ' + bgId);
       } else {
-        migLog('warn', '  No bg_id found for ' + d.row.new_enterprise_id + '/' + newTeam);
+        migLog('warn', '  No bg_id found — response: ' + JSON.stringify(bgData).slice(0, 300));
       }
     } catch(be) {
       migLog('warn', '  bg_id fetch failed: ' + be.message);

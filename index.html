@@ -1285,116 +1285,87 @@ async function confirmAndRun() {
     return;
   }
 
-  // ── Phase 2: Upload (bulk/process) ──
-  migLog('blue', '━━ Phase 2: Uploading to new accounts via bulk/process');
+  // ── Phase 2: Upload via same spyne-process Lambda as folder upload ──
+  migLog('blue', '━━ Phase 2: Uploading to new accounts');
   setMigProg(40, '⬆ Phase 2/3 — Uploading to new accounts…');
 
-  var userId = document.getElementById('mig-userId').value.trim() || loginUserId;
-  var bgId   = document.getElementById('mig-bgId').value.trim();
-  var catId  = document.getElementById('mig-catId').value.trim();
-
-  // Group by new_enterprise + new_team
-  var groups = {};
-  toRun.forEach(function(d) {
-    var gk = d.row.new_enterprise_id + '||' + d.row.new_teamid;
-    if (!groups[gk]) groups[gk] = [];
-    groups[gk].push(d);
-  });
-
-  var gKeys = Object.keys(groups);
   var done  = 0;
+  var total = toRun.length;
 
-  migLog('blue', 'Starting — ' + toRun.length + ' VINs across ' + gKeys.length + ' groups');
+  for (var vi = 0; vi < toRun.length; vi++) {
+    var d       = toRun[vi];
+    var vinName = d.row.vin_name;
+    var newTeam = d.row.new_teamid;
+    var imageUrls = d.images.map(function(img){ return img.url; });
 
-  for (var gi = 0; gi < gKeys.length; gi++) {
-    var gk     = gKeys[gi];
-    var parts  = gk.split('||');
-    var newEnt = parts[0], newTeam = parts[1];
-    var items  = groups[gk];
+    migLog('info', 'Uploading ' + vinName + ' → ' + d.row.new_enterprise_id);
 
-    var bulkData = items.map(function(d) {
-      var fc = d.images.length;
-      var images = d.images.map(function(img, idx) {
-        return {
-          id: '', url: img.url, isVdp: false,
-          metaData: { type:'image/jpeg', name: d.row.vin_name+'_'+idx+'.jpg', size:0 },
-          processingData: { bannerApply: false },
-          isNew: true, isDeleted: false
-        };
-      });
-      return {
-        data: {
-          vehicleData: {
-            vehicleMetadataUpdates: { vinDetails: { vehicleSnap: {
-              make:{value:''}, model:{value:''}, year:{value:null}, trim:{value:''}
-            }}},
-            vin: d.row.vin_name
-          },
-          inputData: {
-            platform: 'CONSOLE', dataType: ['IMAGE'], metaData: {},
-            assets: { images: images, video: [] }
-          },
-          processingConfigs: {
-            backgroundId: bgId,
-            catalog: { bannerUrl:null, bannerCopy:false, licensePlateUrl:'', frameCount:fc, backgroundId:bgId, category_id:catId, background_type:'legacy', number_plate_url:'' },
-            spin:    { detectHotspot:false, spinFrameCount:fc, catalogFrameCount:fc, backgroundId:bgId, licensePlateUrl:'' },
-            featureVideo: { templateId:'', font:{text:'Montserrat',key:'Montserrat'}, colors:{primaryColor:'#FFFFFF'}, musicId:'', voiceId:'', language:'', targetLanguage:'' }
-          },
-          action: 'create'
-        },
-        outputData: {
-          outputType: ['CATALOG'],
-          outputFormat: 'jpeg',
-          outputQuality: 'high'
-        }
-      };
-    });
-
-    migLog('info', 'Posting ' + newEnt+'/'+newTeam + ' — ' + items.length + ' VINs…');
+    // Get token for new enterprise (use loginToken — Lambda handles it)
+    // Use same spyne-process Lambda as original upload flow
+    // bgId fetched via get-bg-id Lambda for new enterprise
+    var bgId = '';
     try {
-      var resp = await fetch('https://api.spyne.ai/inventory/v2/bulk/process', {
+      var bgResp = await fetch(API_BASE + '/get-bg-id', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + loginToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userData: { enterpriseId:newEnt, teamId:newTeam, userId:userId }, bulkData: bulkData })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          loginToken:   loginToken
+        })
       });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var bgData = await bgResp.json();
+      bgId = bgData.defaultBackground || (bgData.teamBgs && bgData.teamBgs[0] && (bgData.teamBgs[0].background_id || bgData.teamBgs[0]._id)) || '';
+      if (bgId) migLog('ok', '  bg_id: ' + bgId);
+      else migLog('warn', '  No bg_id found — using empty');
+    } catch(be) {
+      migLog('warn', '  bg_id fetch failed: ' + be.message);
+    }
 
-      // Parse response to check per-VIN success
-      var respData = await resp.json();
-      var vinResults = {};
-      // bulk/process returns per-VIN status in response
-      if (respData && respData.data && Array.isArray(respData.data)) {
-        respData.data.forEach(function(item) {
-          var vin = item.vin || item.vinName || '';
-          vinResults[vin] = item.status || item.success || 'queued';
-        });
-      }
+    // Get enterprise token via generate-token Lambda
+    var entToken = loginToken;
+    try {
+      var tokResp = await fetch(API_BASE + '/generate-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginToken:   loginToken,
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          userId:       loginUserId
+        })
+      });
+      var tokData = await tokResp.json();
+      if (tokData.token) { entToken = tokData.token; migLog('ok', '  token ready for ' + d.row.new_enterprise_id); }
+    } catch(te) {
+      migLog('warn', '  Token fetch failed, using loginToken');
+    }
 
-      migLog('ok', '✓ ' + newEnt+'/'+newTeam + ': ' + items.length + ' VINs submitted');
+    // Call same spyne-process Lambda as original upload
+    try {
+      var spyneResp = await fetch(API_BASE + '/spyne-process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vin:          vinName,
+          teamId:       newTeam,
+          imageUrls:    imageUrls,
+          backgroundId: bgId,
+          spyneToken:   entToken
+        })
+      });
+      var spyneData = await spyneResp.json();
+      if (!spyneResp.ok) throw new Error(spyneData.error || 'HTTP ' + spyneResp.status);
 
-      // Process each VIN — mark status and delete only if upload succeeded
-      for (var vi = 0; vi < items.length; vi++) {
-        var vItem = items[vi];
-        var vinName = vItem.row.vin_name;
-        var vinStatus = vinResults[vinName] || 'queued';
-        var uploadFailed = vinStatus === 'failed' || vinStatus === 'error';
+      migLog('ok', '✓ ' + vinName + ' submitted');
+      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
 
-        if (uploadFailed) {
-          migLog('warn', '⚠ ' + vinName + ': upload failed — skipping delete');
-          document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge error">✗ Upload Failed</span>';
-          continue;
-        }
-
-        // Upload succeeded
-        document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
-
-        // Delete from old enterprise only if upload succeeded and user opted in
-        if (shouldDelete) {
-          var dealerVinId = vItem.dealerVinId || '';
-          if (!dealerVinId) {
-            migLog('warn', '⚠ ' + vinName + ': no dealerVinId — skipping delete');
-            continue;
-          }
+      // Delete from old enterprise only if upload succeeded
+      if (shouldDelete) {
+        var dealerVinId = d.dealerVinId || '';
+        if (!dealerVinId) {
+          migLog('warn', '⚠ ' + vinName + ': no dealerVinId — skipping delete');
+        } else {
           try {
             var delResp = await fetch(METABASE_API + '/', {
               method: 'POST',
@@ -1402,14 +1373,14 @@ async function confirmAndRun() {
               body: JSON.stringify({
                 action:      'delete-vin',
                 dealerVinId: dealerVinId,
-                userId:      userId,
+                userId:      loginUserId,
                 token:       loginToken
               })
             });
             var delData = await delResp.json();
             if (!delResp.ok || delData.error) throw new Error(delData.error || delData.message || 'HTTP ' + delResp.status);
-            migLog('ok', '🗑 Deleted ' + vinName + ' (' + dealerVinId.slice(0,8) + '…) from ' + vItem.row.old_enterprise_id);
-            document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
+            migLog('ok', '🗑 Deleted ' + vinName + ' from ' + d.row.old_enterprise_id);
+            document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
           } catch(de) {
             migLog('warn', '⚠ Delete failed ' + vinName + ': ' + de.message);
           }
@@ -1417,14 +1388,12 @@ async function confirmAndRun() {
       }
 
     } catch(e) {
-      migLog('err', '✗ ' + newEnt + ': ' + e.message);
-      items.forEach(function(d) {
-        document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
-      });
+      migLog('err', '✗ ' + vinName + ': ' + e.message);
+      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
     }
 
     done++;
-    setMigProg(40 + Math.round(done/gKeys.length*50), '⬆ Uploading group ' + done + ' / ' + gKeys.length);
+    setMigProg(40 + Math.round(done/total*55), '⬆ ' + done + ' / ' + total + ' VINs');
   }
 
   migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));

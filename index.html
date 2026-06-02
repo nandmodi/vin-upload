@@ -1141,7 +1141,7 @@ async function migFetchImages() {
 
   // ── BATCH: send ALL unique rows to Lambda in one POST ──
   migLog('info', 'Sending ' + qKeys.length + ' VINs to Lambda proxy…');
-  setMigProg(10, 'Calling Lambda…');
+  setMigProg(5, '📡 Calling Lambda — ' + qKeys.length + ' VINs…');
 
   var batchRows = qKeys.map(function(qk) {
     var r = queryMap[qk].row;
@@ -1192,7 +1192,7 @@ async function migFetchImages() {
         : '<span class="badge error">No images</span>';
     });
     done++;
-    setMigProg(10 + Math.round(done/qKeys.length*90), 'Processing ' + done + ' / ' + qKeys.length);
+    setMigProg(5 + Math.round(done/qKeys.length*30), 'Metabase: ' + done + ' / ' + qKeys.length + ' VINs processed');
   }
 
   // Build migData for all rows
@@ -1220,9 +1220,9 @@ function handleRunPipeline() {
 
 function migRunPipeline() {
   if (!loginToken) { alert('Paste your Spyne login token first.'); return; }
-  var toRun = migData.filter(function(d) { return d.images.length > 0; });
-  if (!toRun.length) { alert('No rows with images.'); return; }
-  showDeleteModal(toRun.length);
+  if (!migRows.length) { alert('Please upload a CSV file first.'); return; }
+  // Show modal with CSV row count — images fetched AFTER confirm
+  showDeleteModal(migRows.length);
 }
 
 function showDeleteModal(vinCount) {
@@ -1261,25 +1261,29 @@ async function confirmAndRun() {
 
   // Show progress + log
   document.getElementById('mig-progress').style.display = '';
+  var logWrap = document.getElementById('mig-log-wrap');
+  if (logWrap) logWrap.style.display = '';
   document.getElementById('migSection').style.display = '';
   document.getElementById('runBtn').disabled = true;
   document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
 
-  // Step 1: Fetch images from Metabase first
-  migLog('blue', 'Step 1 — Fetching images from Metabase…');
-  setMigProg(5, 'Fetching images from Metabase…');
+  // ── Phase 1: Fetch images from Metabase ──
+  setMigProg(0, '📡 Phase 1/3 — Fetching images from Metabase…');
+  migLog('blue', '━━ Phase 1: Fetching images from Metabase');
   await migFetchImages();
 
   var toRun = migData.filter(function(d) { return d.images.length > 0; });
   if (!toRun.length) {
-    migLog('err', 'No images found in Metabase for any VIN');
+    migLog('err', '✗ No images found in Metabase — check your enterprise_id, team_id, vin_name');
+    setMigProg(100, '✗ No images found');
     document.getElementById('runBtn').disabled = false;
     document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
     return;
   }
 
-  migLog('blue', 'Step 2 — Uploading to new accounts…');
-  setMigProg(50, 'Uploading to new accounts…');
+  // ── Phase 2: Upload (bulk/process) ──
+  migLog('blue', '━━ Phase 2: Uploading to new accounts via bulk/process');
+  setMigProg(40, '⬆ Phase 2/3 — Uploading to new accounts…');
 
   var userId = document.getElementById('mig-userId').value.trim() || loginUserId;
   var bgId   = document.getElementById('mig-bgId').value.trim();
@@ -1388,11 +1392,11 @@ async function confirmAndRun() {
     }
 
     done++;
-    setMigProg(Math.round(done/gKeys.length*100), 'Group ' + done + ' / ' + gKeys.length);
+    setMigProg(40 + Math.round(done/gKeys.length*50), '⬆ Uploading group ' + done + ' / ' + gKeys.length);
   }
 
   migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));
-  setMigProg(100, 'Done!');
+  setMigProg(100, '✅ Migration complete!');
   document.getElementById('migSub').textContent = 'Migration complete ✓';
   document.getElementById('runBtn').disabled = false;
   document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';

@@ -246,21 +246,23 @@ function handleMigCSV(file) {
     migRows = rows;
     migData = [];
     renderMigTable(rows);
-    document.getElementById('migSection').style.display = '';
-    document.getElementById('runBtn').disabled = false; // enable sidebar Run Pipeline
-    document.getElementById('mig-run-btn').disabled = true;
-    document.getElementById('migSub').textContent = rows.length + ' rows loaded — click "Fetch Images" to query Metabase';
-    setMigStep(1);
-    migLog('ok', 'CSV loaded: ' + rows.length + ' rows from ' + file.name);
 
-    // Capsule: mark CSV as loaded
-    const capC = document.getElementById('cap-csv');
-    if (capC) capC.style.cssText += ';background:var(--green-dim);color:var(--green);';
-    const capCInfo = document.getElementById('cap-csv-info');
-    const capCDetail = document.getElementById('cap-csv-detail');
-    if (capCInfo) capCInfo.style.display='block';
-    if (capCDetail) capCDetail.textContent = '✓ ' + rows.length + ' rows loaded · ' + file.name;
-    // Scroll to migration section
+    // Show migration section
+    document.getElementById('migSection').style.display = '';
+    document.getElementById('migSub').textContent = rows.length + ' rows loaded — click Run Pipeline to start';
+
+    // Enable Run Pipeline button
+    document.getElementById('runBtn').disabled = false;
+
+    // Capsule: mark CSV as loaded (green)
+    var capC = document.getElementById('cap-csv');
+    if (capC) { capC.style.background = 'var(--green-dim)'; capC.style.color = 'var(--green)'; }
+    var capCInfo = document.getElementById('cap-csv-info');
+    var capCDetail = document.getElementById('cap-csv-detail');
+    if (capCInfo) capCInfo.style.display = 'block';
+    if (capCDetail) capCDetail.textContent = '✓ ' + rows.length + ' rows · ' + file.name;
+
+    // Scroll to show migration section
     document.getElementById('migSection').scrollIntoView({ behavior: 'smooth' });
   };
   file.name.endsWith('.csv') ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
@@ -285,8 +287,6 @@ function renderMigTable(rows) {
 
 async function migFetchImages() {
   if (!migRows.length) return;
-  document.getElementById('mig-fetch-btn').disabled = true;
-  setMigStep(2);
 
   // Deduplicate queries by old_enterprise + old_team + vin_name
   var queryMap = {};
@@ -581,10 +581,14 @@ function migExportCSV() {
 
 function resetMig() {
   migRows = []; migData = [];
-  document.getElementById('migSection').style.display = 'none';
-  document.getElementById('migBody').innerHTML = '';
-  document.getElementById('migLog').innerHTML = '';
-  document.getElementById('mig-progress').style.display = 'none';
+  var migSection = document.getElementById('migSection');
+  if (migSection) migSection.style.display = 'none';
+  var migBody = document.getElementById('migBody');
+  if (migBody) migBody.innerHTML = '';
+  var migLog = document.getElementById('migLog');
+  if (migLog) migLog.innerHTML = '';
+  var migProg = document.getElementById('mig-progress');
+  if (migProg) migProg.style.display = 'none';
   var logWrap = document.getElementById('mig-log-wrap');
   if (logWrap) logWrap.style.display = 'none';
   document.getElementById('csvMigInput').value = '';
@@ -594,7 +598,7 @@ function resetMig() {
   }
   // Reset capsule CSV state
   var capC = document.getElementById('cap-csv');
-  if (capC) capC.style.background = '';
+  if (capC) { capC.style.background = ''; capC.style.color = ''; }
   var capCInfo = document.getElementById('cap-csv-info');
   if (capCInfo) capCInfo.style.display = 'none';
 }
@@ -1463,414 +1467,6 @@ function applyToken(rawJwt, uid) {
 }
 
 
-/* ════════════════════════════════════════════
-   MIGRATION — CSV → Metabase → bulk/process
-   ════════════════════════════════════════════ */
-// Metabase is called via Lambda proxy to avoid CORS
-// Direct URL kept only as reference — not used in browser fetch
-// const METABASE_DIRECT = 'https://metabase.spyne.ai/api/public/card/507971b0.../query/json';
-const MIG_COLS = ['old_enterprise_id','old_teamid','vin_name','new_enterprise_id','new_teamid'];
-
-let migRows = [];     // parsed CSV rows
-let migData = [];     // { row, images:[{url,category}] }
-
-function migLog(type, msg) {
-  const body = document.getElementById('migLog');
-  const now = new Date();
-  const t = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
-  const e = document.createElement('div'); e.className = 'le';
-  e.innerHTML = '<span class="lt">'+t+'</span><span class="lm '+type+'">'+esc(msg)+'</span>';
-  body.appendChild(e); body.scrollTop = body.scrollHeight;
-}
-
-function setMigStep(n) {
-  for (var i = 1; i <= 4; i++) {
-    var el = document.getElementById('ms'+i);
-    if (!el) continue;
-    el.className = 'mig-step' + (i < n ? ' done' : i === n ? ' active' : '');
-  }
-}
-
-function setMigProg(pct, label) {
-  document.getElementById('mig-progress').style.display = '';
-  document.getElementById('mig-prog-fill').style.width = pct + '%';
-  document.getElementById('mig-prog-pct').textContent = pct + '%';
-  if (label) document.getElementById('mig-prog-label').textContent = label;
-}
-
-function handleMigCSV(file) {
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var wb;
-    try {
-      wb = file.name.endsWith('.csv')
-        ? XLSX.read(e.target.result, { type: 'string' })
-        : XLSX.read(e.target.result, { type: 'array' });
-    } catch(ex) { alert('Failed to parse file: ' + ex.message); return; }
-
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    if (!raw.length) { alert('File is empty'); return; }
-
-    // Normalize headers
-    var rows = raw.map(function(r) {
-      var out = {};
-      Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s\-]/g,'_')] = r[k]; });
-      return out;
-    });
-
-    // Validate required columns
-    var missing = MIG_COLS.filter(function(c) { return !(c in rows[0]); });
-    if (missing.length) {
-      alert('Missing columns: ' + missing.join(', ') + '\nFound: ' + Object.keys(rows[0]).join(', '));
-      return;
-    }
-
-    migRows = rows;
-    migData = [];
-    renderMigTable(rows);
-    document.getElementById('migSection').style.display = '';
-    document.getElementById('mig-fetch-btn').disabled = false;
-    document.getElementById('mig-run-btn').disabled = true;
-    document.getElementById('migSub').textContent = rows.length + ' rows loaded — click "Fetch Images" to query Metabase';
-    setMigStep(1);
-    migLog('ok', 'CSV loaded: ' + rows.length + ' rows from ' + file.name);
-
-    // Capsule: mark CSV as loaded
-    const capC = document.getElementById('cap-csv');
-    if (capC) capC.style.cssText += ';background:var(--green-dim);color:var(--green);';
-    const capCInfo = document.getElementById('cap-csv-info');
-    const capCDetail = document.getElementById('cap-csv-detail');
-    if (capCInfo) capCInfo.style.display='block';
-    if (capCDetail) capCDetail.textContent = '✓ ' + rows.length + ' rows loaded · ' + file.name;
-    // Scroll to migration section
-    document.getElementById('migSection').scrollIntoView({ behavior: 'smooth' });
-  };
-  file.name.endsWith('.csv') ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
-}
-
-function renderMigTable(rows) {
-  var tb = document.getElementById('migBody');
-  tb.innerHTML = '';
-  rows.forEach(function(r, i) {
-    var tr = document.createElement('tr'); tr.id = 'migrow-'+i;
-    tr.innerHTML =
-      '<td><span class="tag ent">'+esc(r.old_enterprise_id)+'</span></td>' +
-      '<td><span class="tag team">'+esc(r.old_teamid)+'</span></td>' +
-      '<td style="font-family:var(--mono);font-size:12px;">'+esc(r.vin_name)+'</td>' +
-      '<td><span class="tag ent">'+esc(r.new_enterprise_id)+'</span></td>' +
-      '<td><span class="tag team">'+esc(r.new_teamid)+'</span></td>' +
-      '<td id="mig-imgs-'+i+'" style="color:var(--hint)">—</td>' +
-      '<td id="mig-status-'+i+'"><span class="badge pending">Pending</span></td>';
-    tb.appendChild(tr);
-  });
-}
-
-async function migFetchImages() {
-  if (!migRows.length) return;
-  document.getElementById('mig-fetch-btn').disabled = true;
-  setMigStep(2);
-
-  // Deduplicate queries by old_enterprise + old_team + vin_name
-  var queryMap = {};
-  migRows.forEach(function(r, i) {
-    var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
-    if (!queryMap[qk]) queryMap[qk] = { row: r, indices: [], images: null };
-    queryMap[qk].indices.push(i);
-  });
-
-  var qKeys = Object.keys(queryMap);
-  var done = 0;
-
-  migLog('blue', 'Querying Metabase for ' + qKeys.length + ' unique VINs…');
-
-  // ── BATCH: send ALL unique rows to Lambda in one POST ──
-  migLog('info', 'Sending ' + qKeys.length + ' VINs to Lambda proxy…');
-  setMigProg(10, 'Calling Lambda…');
-
-  var batchRows = qKeys.map(function(qk) {
-    var r = queryMap[qk].row;
-    return {
-      enterprise_id: r.old_enterprise_id,
-      team_id:       r.old_teamid,
-      sku_name:      r.vin_name
-    };
-  });
-
-  try {
-    var batchResp = await fetch(METABASE_API + '/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: batchRows })
-    });
-    if (!batchResp.ok) {
-      var errText = await batchResp.text();
-      throw new Error('Lambda HTTP ' + batchResp.status + ': ' + errText.slice(0,120));
-    }
-    var batchData = await batchResp.json();
-    // batchData = [ { enterprise_id, team_id, sku_name, images:[{url,category}] }, ... ]
-    migLog('ok', 'Lambda returned results for ' + batchData.length + ' VINs');
-
-    batchData.forEach(function(item) {
-      var qk = item.enterprise_id + '||' + item.team_id + '||' + item.sku_name;
-      if (!queryMap[qk]) return;
-      queryMap[qk].images = item.images || [];
-      queryMap[qk].dealerVinId = item.dealerVinId || '';
-    });
-
-  } catch(e) {
-    migLog('err', 'Lambda fetch failed: ' + e.message);
-    // Mark all as error
-    qKeys.forEach(function(qk) { queryMap[qk].images = []; });
-  }
-
-  // Update table rows with results
-  for (var qi = 0; qi < qKeys.length; qi++) {
-    var qk = qKeys[qi];
-    var qe = queryMap[qk];
-    var imgs = qe.images || [];
-    migLog(imgs.length ? 'ok' : 'warn', queryMap[qk].row.vin_name + ': ' + imgs.length + ' images');
-    qe.indices.forEach(function(i) {
-      document.getElementById('mig-imgs-'+i).textContent = imgs.length;
-      document.getElementById('mig-status-'+i).innerHTML = imgs.length
-        ? '<span class="badge s3ok">Ready</span>'
-        : '<span class="badge error">No images</span>';
-    });
-    done++;
-    setMigProg(10 + Math.round(done/qKeys.length*90), 'Processing ' + done + ' / ' + qKeys.length);
-  }
-
-  // Build migData for all rows
-  migData = migRows.map(function(r, i) {
-    var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
-    var qEntry = queryMap[qk] || {};
-    return { row: r, idx: i, images: qEntry.images || [], dealerVinId: qEntry.dealerVinId || '' };
-  });
-
-  var withImages = migData.filter(function(d) { return d.images.length > 0; }).length;
-  migLog('blue', 'Fetch complete — ' + withImages + '/' + migRows.length + ' rows have images');
-  document.getElementById('migSub').textContent = withImages + ' rows ready for upload';
-}
-
-function migRunPipeline() {
-  if (!loginToken) { alert('Paste your Spyne login token first.'); return; }
-  var toRun = migData.filter(function(d) { return d.images.length > 0; });
-  if (!toRun.length) { alert('No rows with images.'); return; }
-  showDeleteModal(toRun.length);
-}
-
-function showDeleteModal(vinCount) {
-  // Remove any existing modal
-  var existing = document.getElementById('deleteModal');
-  if (existing) existing.remove();
-
-  var modal = document.createElement('div');
-  modal.id = 'deleteModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  modal.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px 28px;width:360px;max-width:90vw;">' +
-      '<div style="font-size:15px;font-weight:600;margin-bottom:6px;">Run Migration</div>' +
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;">Upload <strong style="color:var(--text)">' + vinCount + ' VINs</strong> from CSV to new accounts.<br>Images fetched from Metabase automatically.</div>' +
-      '<label style="display:flex;align-items:flex-start;gap:10px;background:var(--red-dim);border:1px solid rgba(242,87,87,0.25);border-radius:var(--radius-sm);padding:12px;margin-bottom:18px;cursor:pointer;">' +
-        '<input type="checkbox" id="deleteChk" style="margin-top:2px;accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0;">' +
-        '<div style="font-size:12.5px;color:var(--text);line-height:1.5;"><span style="color:var(--red);font-weight:500;">Delete VINs from old enterprise/team</span><br>after successful upload. This cannot be undone.</div>' +
-      '</label>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
-        '<button class="btn sm" onclick="closeDeleteModal()">Cancel</button>' +
-        '<button class="btn sm primary" onclick="confirmAndRun()">▶ Run Pipeline</button>' +
-      '</div>' +
-    '</div>';
-  modal.addEventListener('click', function(e) { if (e.target === modal) closeDeleteModal(); });
-  document.body.appendChild(modal);
-}
-
-function closeDeleteModal() {
-  var modal = document.getElementById('deleteModal');
-  if (modal) modal.remove();
-}
-
-async function confirmAndRun() {
-  var shouldDelete = document.getElementById('deleteChk').checked;
-  closeDeleteModal();
-
-  // Show progress + log
-  document.getElementById('mig-progress').style.display = '';
-  document.getElementById('migSection').style.display = '';
-  document.getElementById('runBtn').disabled = true;
-  document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
-
-  // Step 1: Fetch images from Metabase first
-  migLog('blue', 'Step 1 — Fetching images from Metabase…');
-  setMigProg(5, 'Fetching images from Metabase…');
-  await migFetchImages();
-
-  var toRun = migData.filter(function(d) { return d.images.length > 0; });
-  if (!toRun.length) {
-    migLog('err', 'No images found in Metabase for any VIN');
-    document.getElementById('runBtn').disabled = false;
-    document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
-    return;
-  }
-
-  migLog('blue', 'Step 2 — Uploading to new accounts…');
-  setMigProg(50, 'Uploading to new accounts…');
-
-  var userId = document.getElementById('mig-userId').value.trim() || loginUserId;
-  var bgId   = document.getElementById('mig-bgId').value.trim();
-  var catId  = document.getElementById('mig-catId').value.trim();
-
-  // Group by new_enterprise + new_team
-  var groups = {};
-  toRun.forEach(function(d) {
-    var gk = d.row.new_enterprise_id + '||' + d.row.new_teamid;
-    if (!groups[gk]) groups[gk] = [];
-    groups[gk].push(d);
-  });
-
-  var gKeys = Object.keys(groups);
-  var done  = 0;
-  setMigProg(0, 'Posting to bulk/process…');
-
-  migLog('blue', 'Starting — ' + toRun.length + ' VINs across ' + gKeys.length + ' groups');
-
-  for (var gi = 0; gi < gKeys.length; gi++) {
-    var gk     = gKeys[gi];
-    var parts  = gk.split('||');
-    var newEnt = parts[0], newTeam = parts[1];
-    var items  = groups[gk];
-
-    var bulkData = items.map(function(d) {
-      var fc = d.images.length;
-      return {
-        vehicleData: {
-          vehicleMetadataUpdates: { vinDetails: { vehicleSnap: {
-            make:{value:''}, model:{value:''}, year:{value:null}, trim:{value:''}
-          }}},
-          vin: d.row.vin_name
-        },
-        inputData: {
-          platform: 'CONSOLE', dataType: ['IMAGE'], metaData: {},
-          assets: {
-            images: d.images.map(function(img, idx) {
-              return {
-                id: '', url: img.url, isVdp: false,
-                metaData: { type:'image/jpeg', name: d.row.vin_name+'_'+idx+'.jpg', size:0 },
-                processingData: { bannerApply: false },
-                isNew: true, isDeleted: false
-              };
-            }),
-            video: []
-          }
-        },
-        processingConfigs: {
-          backgroundId: bgId,
-          catalog: { bannerUrl:null, bannerCopy:false, licensePlateUrl:'', frameCount:fc, backgroundId:bgId, category_id:catId, background_type:'legacy', number_plate_url:'' },
-          spin:    { detectHotspot:false, spinFrameCount:fc, catalogFrameCount:fc, backgroundId:bgId, licensePlateUrl:'' },
-          featureVideo: { templateId:'', font:{text:'Montserrat',key:'Montserrat'}, colors:{primaryColor:'#FFFFFF'}, musicId:'', voiceId:'', language:'', targetLanguage:'' }
-        },
-        action: 'create'
-      };
-    });
-
-    migLog('info', 'Posting ' + newEnt+'/'+newTeam + ' — ' + items.length + ' VINs…');
-    try {
-      var resp = await fetch('https://api.spyne.ai/inventory/v2/bulk/process', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + loginToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userData: { enterpriseId:newEnt, teamId:newTeam, userId:userId }, bulkData: bulkData })
-      });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      migLog('ok', '✓ ' + newEnt+'/'+newTeam + ': ' + items.length + ' VINs queued');
-      items.forEach(function(d) {
-        document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
-      });
-      // Delete from old enterprise if user opted in
-      if (shouldDelete) {
-        for (var di = 0; di < items.length; di++) {
-          var dItem = items[di];
-          var dealerVinId = dItem.dealerVinId || '';
-          if (!dealerVinId) {
-            migLog('warn', '⚠ ' + dItem.row.vin_name + ': no dealerVinId — skipping delete');
-            continue;
-          }
-          try {
-            // Route DELETE through Lambda to avoid CORS
-            var delResp = await fetch(METABASE_API + '/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action:      'delete-vin',
-                dealerVinId: dealerVinId,
-                userId:      userId,
-                token:       loginToken
-              })
-            });
-            var delData = await delResp.json();
-            if (!delResp.ok || delData.error) throw new Error(delData.error || delData.message || 'HTTP ' + delResp.status);
-            migLog('ok', '🗑 Deleted ' + dItem.row.vin_name + ' (' + dealerVinId.slice(0,8) + '…) from ' + dItem.row.old_enterprise_id);
-            document.getElementById('mig-status-'+dItem.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
-          } catch(de) {
-            migLog('warn', '⚠ Delete failed ' + dItem.row.vin_name + ': ' + de.message);
-          }
-        }
-      }
-    } catch(e) {
-      migLog('err', '✗ ' + newEnt + ': ' + e.message);
-      items.forEach(function(d) {
-        document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
-      });
-    }
-
-    done++;
-    setMigProg(Math.round(done/gKeys.length*100), 'Group ' + done + ' / ' + gKeys.length);
-  }
-
-  migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));
-  setMigProg(100, 'Done!');
-  document.getElementById('migSub').textContent = 'Migration complete ✓';
-  document.getElementById('runBtn').disabled = false;
-  document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
-}
-
-function migExportCSV() {
-  var lines = ['vin_name,old_enterprise_id,old_team_id,new_enterprise_id,new_team_id,dealer_vin_id,images,status'];
-  migData.forEach(function(d) {
-    var r = d.row;
-    var statusEl = document.getElementById('mig-status-'+d.idx);
-    var status = statusEl ? statusEl.textContent.trim() : '';
-    lines.push([r.vin_name, r.old_enterprise_id, r.old_teamid, r.new_enterprise_id, r.new_teamid, d.dealerVinId||'', d.images.length, status]
-      .map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
-  });
-  var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
-  var a = document.createElement('a');
-  a.setAttribute('href', dataUri);
-  a.setAttribute('download', 'migration-results.csv');
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ document.body.removeChild(a); }, 200);
-}
-
-function resetMig() {
-  migRows = []; migData = [];
-  document.getElementById('migSection').style.display = 'none';
-  document.getElementById('migBody').innerHTML = '';
-  document.getElementById('migLog').innerHTML = '';
-  document.getElementById('mig-progress').style.display = 'none';
-  var logWrap = document.getElementById('mig-log-wrap');
-  if (logWrap) logWrap.style.display = 'none';
-  document.getElementById('csvMigInput').value = '';
-  // Re-disable Run Pipeline if no folder loaded either
-  if (!Object.keys(vinMap).length) {
-    document.getElementById('runBtn').disabled = true;
-  }
-  // Reset capsule CSV state
-  var capC = document.getElementById('cap-csv');
-  if (capC) capC.style.background = '';
-  var capCInfo = document.getElementById('cap-csv-info');
-  if (capCInfo) capCInfo.style.display = 'none';
-}
 
 </script>
 <!-- Modal injected dynamically via showDeleteModal() -->

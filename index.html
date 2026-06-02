@@ -1,820 +1,1346 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Spyne Auto-Upload Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spyne · Upload Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root {
-    --bg:#0f1117;--surface:#181b23;--surface2:#1e2230;
-    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
-    --text:#e8eaf0;--muted:#8b90a0;--hint:#555b6e;
-    --blue:#4f8ef7;--blue-dim:rgba(79,142,247,0.12);
-    --green:#3ecf8e;--green-dim:rgba(62,207,142,0.12);
-    --amber:#f5a623;--amber-dim:rgba(245,166,35,0.12);
-    --red:#f25757;--red-dim:rgba(242,87,87,0.12);
-    --purple:#a78bfa;
-    --radius:10px;--radius-sm:6px;
-    --mono:'SF Mono','Fira Code',monospace;
-    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
-  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);}
-  .pill{font-size:11px;padding:2px 10px;border-radius:99px;font-weight:500;}
-  .pill.idle   {background:var(--surface2);color:var(--muted);}
-  .pill.running{background:var(--blue-dim);color:var(--blue);}
-  .pill.done   {background:var(--green-dim);color:var(--green);}
-  .pill.error  {background:var(--red-dim);color:var(--red);}
-  .layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 56px);}
-  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;overflow-y:auto;height:calc(100vh - 56px);position:sticky;top:56px;}
-  .main{padding:24px;overflow-y:auto;}
-  .s-title{font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--hint);text-transform:uppercase;margin-bottom:10px;}
-  .s-section{margin-bottom:20px;}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
-  .field input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:var(--mono);}
-  .field input:focus{border-color:var(--blue);}
-  .field .hint{font-size:11px;margin-top:3px;}
-  .field .hint.ok{color:var(--green);}
-  .field .hint.err{color:var(--red);}
-  .field .hint.muted{color:var(--hint);}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--sans);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
-  .btn:hover:not(:disabled){background:rgba(255,255,255,0.06);}
-  .btn:disabled{opacity:0.4;cursor:not-allowed;}
-  .btn.full{width:100%;margin-bottom:6px;}
-  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:500;}
-  .btn.primary:hover:not(:disabled){background:#6ba0f9;}
-  .btn.sm{padding:4px 10px;font-size:12px;}
-  .drop-zone{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:22px 12px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg);}
-  .drop-zone:hover,.drop-zone.hover{border-color:var(--blue);background:var(--blue-dim);}
-  .drop-zone svg{margin:0 auto 8px;display:block;color:var(--muted);}
-  .drop-zone p{font-size:13px;color:var(--muted);}
-  .drop-zone span{font-size:11px;color:var(--hint);}
-  input[type="file"]{display:none;}
-  .combos-wrap{margin-top:8px;display:flex;flex-direction:column;gap:8px;}
-  .combo-card{background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;}
-  .combo-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
-  .combo-ent{font-size:11px;font-weight:600;color:var(--purple);font-family:var(--mono);}
-  .combo-sep{font-size:11px;color:var(--hint);}
-  .combo-team{font-size:11px;font-weight:600;color:var(--blue);font-family:var(--mono);}
-  .combo-meta{font-size:11px;color:var(--hint);margin-left:auto;}
-  .cs{font-size:10px;padding:1px 7px;border-radius:99px;font-weight:500;}
-  .cs.ok{background:var(--green-dim);color:var(--green);}
-  .cs.err{background:var(--red-dim);color:var(--red);}
-  .cs.loading{background:var(--amber-dim);color:var(--amber);}
-  .cs.pending{background:var(--surface2);color:var(--muted);}
-  .combo-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
-  .combo-row label{font-size:11px;color:var(--muted);white-space:nowrap;width:45px;}
-  .combo-row input{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;}
-  .combo-row input:focus{border-color:var(--blue);}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
-  .stat-lbl{font-size:11px;color:var(--muted);margin-bottom:4px;}
-  .stat-val{font-size:22px;font-weight:600;}
-  .stat-val.blue{color:var(--blue);}
-  .stat-val.green{color:var(--green);}
-  .stat-val.amber{color:var(--amber);}
-  .stat-val.red{color:var(--red);}
-  .log-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
-  .log-head{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;}
-  .log-body{padding:10px 14px;font-family:var(--mono);font-size:12px;max-height:150px;overflow-y:auto;line-height:1.9;}
-  .log-body:empty::before{content:'Waiting…';color:var(--hint);}
-  .le{display:flex;gap:10px;}
-  .lt{color:var(--hint);flex-shrink:0;}
-  .lm.ok{color:var(--green);}
-  .lm.err{color:var(--red);}
-  .lm.warn{color:var(--amber);}
-  .lm.blue{color:var(--blue);}
-  .lm.info{color:var(--muted);}
-  .tbl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .tbl-title{font-size:15px;font-weight:600;}
-  .tbl-sub{font-size:12px;color:var(--muted);margin-top:1px;}
-  .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-  table{width:100%;border-collapse:collapse;}
-  th{font-size:11px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:0.06em;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;background:var(--surface2);}
-  td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
-  tr:last-child td{border-bottom:none;}
-  tr:hover td{background:rgba(255,255,255,0.02);}
-  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500;white-space:nowrap;}
-  .badge.pending{background:var(--surface2);color:var(--muted);}
-  .badge.running{background:var(--amber-dim);color:var(--amber);}
-  .badge.s3ok{background:var(--blue-dim);color:var(--blue);}
-  .badge.spyneok{background:var(--green-dim);color:var(--green);}
-  .badge.error{background:var(--red-dim);color:var(--red);}
-  .tag{display:inline-block;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:1px 6px;border-radius:4px;font-family:var(--mono);}
-  .tag.ent{color:var(--purple);border-color:rgba(167,139,250,0.3);}
-  .tag.team{color:var(--blue);border-color:rgba(79,142,247,0.3);}
-  .empty{text-align:center;padding:50px 20px;color:var(--muted);}
-  .empty svg{margin:0 auto 12px;display:block;color:var(--hint);}
-  .spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,0.2);border-top-color:currentColor;border-radius:50%;animation:spin 0.7s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .info-box{font-size:11px;color:var(--hint);line-height:1.8;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);margin-top:10px;}
-  ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
-  @media(max-width:900px){.layout{grid-template-columns:1fr;}.sidebar{height:auto;position:static;}.stats{grid-template-columns:repeat(2,1fr);}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--s1:#111;--s2:#171717;--s3:#1e1e1e;
+  --bd:#262626;--bd2:#303030;
+  --tx:#f2f2f2;--tx2:#888;--tx3:#444;
+  --ac:#C8FF00;--ac2:#a8d600;--ac-bg:rgba(200,255,0,.07);
+  --bl:#4d9fff;--gn:#3dd68c;--rd:#ff5f5f;--am:#f5a623;--pu:#9b8cff;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --r:6px;--rl:10px
+}
+html,body{height:100%;font-family:var(--sans);background:var(--bg);color:var(--tx);font-size:13px;line-height:1.6}
+.app{display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{width:220px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:hidden}
+.logo{padding:20px 18px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.logo-mark{width:28px;height:28px;background:var(--ac);border-radius:7px;display:grid;place-items:center;flex-shrink:0}
+.logo-mark svg{width:14px;height:14px}
+.logo-text{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.logo-sub{font-size:10px;color:var(--tx2);letter-spacing:.04em;text-transform:uppercase}
+.nav{padding:12px 8px;flex:1;overflow-y:auto}
+.nav-section{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;padding:8px 10px 4px;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;color:var(--tx2);transition:all .15s;font-size:12.5px;user-select:none}
+.nav-item:hover{background:var(--s3);color:var(--tx)}
+.nav-item.active{background:var(--ac-bg);color:var(--ac);border:1px solid rgba(200,255,0,.15)}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.nav-badge{margin-left:auto;font-size:10px;background:var(--s3);padding:1px 6px;border-radius:10px;color:var(--tx3)}
+.nav-item.active .nav-badge{background:rgba(200,255,0,.15);color:var(--ac2)}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--bd);font-size:11px;color:var(--tx3)}
+.token-display{font-family:var(--mono);font-size:10px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:500;flex:1}
+.topbar-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--tx3)}
+.status-dot.ok{background:var(--gn)}
+.content{flex:1;overflow-y:auto;padding:28px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+
+/* ── Cards & Sections ── */
+.card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rl);padding:20px 22px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:500;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title svg{width:13px;height:13px;opacity:.6}
+.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media(max-width:900px){.section-grid{grid-template-columns:1fr}}
+.field-group{display:flex;flex-direction:column;gap:5px}
+.field-label{font-size:11px;color:var(--tx2);letter-spacing:.03em}
+input,select{width:100%;background:var(--s3);border:1px solid var(--bd2);border-radius:var(--r);padding:8px 11px;color:var(--tx);font-size:12.5px;font-family:var(--sans);outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:rgba(200,255,0,.4)}
+input::placeholder{color:var(--tx3)}
+select option{background:var(--s3)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--r);cursor:pointer;font-size:12.5px;font-family:var(--sans);font-weight:500;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--ac);color:#000}
+.btn-primary:hover{background:var(--ac2)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--bd2)}
+.btn-ghost:hover{background:var(--s3);color:var(--tx)}
+.btn-danger{background:rgba(255,95,95,.1);color:var(--rd);border:1px solid rgba(255,95,95,.2)}
+.btn-danger:hover{background:rgba(255,95,95,.2)}
+.btn svg{width:13px;height:13px}
+.btn-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ── Drop Zone (legacy, kept for fallback) ── */
+.drop-zone{border:1.5px dashed var(--bd2);border-radius:var(--rl);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.drop-zone:hover,.drop-zone.drag-over{border-color:rgba(200,255,0,.4);background:var(--ac-bg)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{width:36px;height:36px;background:var(--s3);border-radius:8px;display:grid;place-items:center;margin:0 auto 10px}
+.drop-icon svg{width:18px;height:18px;color:var(--tx2)}
+.drop-title{font-size:13px;font-weight:500;color:var(--tx);margin-bottom:4px}
+.drop-hint{font-size:11px;color:var(--tx3)}
+
+/* ── Capsule Upload Toggle ── */
+.capsule-wrap{display:flex;border-radius:100px;overflow:hidden;border:1px solid var(--bd2);background:var(--s3);width:100%;height:52px;position:relative}
+.capsule-half{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--tx2);transition:all .18s;position:relative;user-select:none}
+.capsule-half input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.capsule-half svg{width:15px;height:15px;flex-shrink:0}
+.capsule-half.active{background:var(--ac);color:#000;border-radius:100px}
+.capsule-half.loaded{background:rgba(61,214,140,.12);color:var(--gn);border-radius:100px}
+.capsule-half:not(.active):not(.loaded):hover{color:var(--tx);background:var(--bd)}
+.capsule-divider{width:1px;background:var(--bd2);align-self:stretch;flex-shrink:0}
+.capsule-half.active .capsule-divider,.capsule-half.loaded .capsule-divider{display:none}
+/* file info strip below capsule */
+.capsule-info{display:flex;gap:10px;margin-top:10px;min-height:20px}
+.capsule-info-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tx2);flex:1}
+.capsule-info-item svg{width:13px;height:13px;opacity:.6;flex-shrink:0}
+.capsule-info-name{font-family:var(--mono);font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.capsule-clear{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;transition:color .15s}
+.capsule-clear:hover{color:var(--rd)}
+
+/* ── Progress ── */
+.progress-block{margin-bottom:12px}
+.progress-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.progress-label{font-size:12px;color:var(--tx2)}
+.progress-pct{font-size:12px;font-family:var(--mono);color:var(--tx2)}
+.progress-bar{height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--ac);border-radius:2px;transition:width .3s ease;width:0%}
+
+/* ── Log ── */
+.log-box{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;height:240px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.8}
+.log-box .l-ok{color:var(--gn)}
+.log-box .l-err{color:var(--rd)}
+.log-box .l-warn{color:var(--am)}
+.log-box .l-sep{color:var(--pu);font-weight:500}
+.log-box .l-info{color:var(--tx2)}
+.log-box .l-new{color:var(--bl)}
+
+/* ── Table ── */
+.table-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:var(--s3);padding:9px 12px;text-align:left;font-weight:500;color:var(--tx2);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--s3)}
+tbody td{padding:9px 12px;color:var(--tx);vertical-align:middle}
+.td-mono{font-family:var(--mono);font-size:11px;color:var(--tx2)}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:500}
+.badge-ok{background:rgba(61,214,140,.12);color:var(--gn)}
+.badge-err{background:rgba(255,95,95,.12);color:var(--rd)}
+.badge-warn{background:rgba(245,166,35,.12);color:var(--am)}
+.badge-info{background:rgba(77,159,255,.12);color:var(--bl)}
+.badge-pend{background:var(--s3);color:var(--tx2)}
+.badge-new{background:rgba(155,140,255,.12);color:var(--pu)}
+
+/* ── Migration specific ── */
+.migration-steps{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+.mstep{flex:1;padding:12px 14px;background:var(--s2);text-align:center;position:relative;font-size:11.5px;color:var(--tx3)}
+.mstep.active{background:var(--ac-bg);color:var(--ac)}
+.mstep.done{background:rgba(61,214,140,.06);color:var(--gn)}
+.mstep-num{display:block;font-size:10px;font-family:var(--mono);margin-bottom:2px;opacity:.6}
+.mstep+.mstep{border-left:1px solid var(--bd)}
+.preview-table-wrap{max-height:280px;overflow-y:auto;border-radius:var(--r);border:1px solid var(--bd)}
+.row-status-cell{width:90px}
+
+/* ── Stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px}
+.stat-val{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--tx)}
+.stat-lab{font-size:11px;color:var(--tx2);margin-top:2px}
+
+/* ── Misc ── */
+.divider{height:1px;background:var(--bd);margin:18px 0}
+.hint{font-size:11px;color:var(--tx3);line-height:1.6;margin-top:6px}
+.chip{display:inline-block;background:var(--s3);border:1px solid var(--bd2);border-radius:4px;padding:1px 7px;font-family:var(--mono);font-size:10.5px;color:var(--tx2)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--tx3)}
+.empty-state svg{width:32px;height:32px;margin:0 auto 10px;opacity:.3;display:block}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s3);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 16px;font-size:12px;color:var(--tx);z-index:999;animation:fadeIn .2s;max-width:320px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
+<div class="app">
 
-<div class="topbar">
-  <div class="brand"><div class="dot"></div>Spyne Auto-Upload Dashboard</div>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <span id="spyneDot" style="font-size:12px;color:var(--hint);">● spyne</span>
-    <span class="pill idle" id="gStatus">Idle</span>
-  </div>
-</div>
-
-<div class="layout">
-<div class="sidebar">
-
-  <!-- Login Token -->
-  <div class="s-section">
-    <div class="s-title">Spyne Login</div>
-    <div class="field">
-      <label>Login Token</label>
-      <input type="password" id="loginTokenInput" placeholder="Bearer eyJ..." />
-      <div class="hint muted" id="loginHint">Paste from Spyne → F12 → Console:<br/>localStorage.getItem('defaultBearerToken')</div>
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
     </div>
-    <button class="btn full" onclick="saveLoginToken()">✓ Save Token</button>
-    <button class="btn full" style="font-size:12px;" onclick="clearLoginToken()">✕ Clear Token</button>
-  </div>
-
-  <!-- Folder -->
-  <div class="s-section">
-    <div class="s-title">Upload Folder</div>
-    <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()">
-      <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
-      <p>Select root folder</p>
-      <span>root / enterprise / team / VIN / images</span>
-    </div>
-    <input type="file" id="fi" webkitdirectory multiple />
-  </div>
-
-  <!-- Combos -->
-  <div class="s-section" id="combosSection" style="display:none;">
-    <div class="s-title">Combos — bg_id required</div>
-    <div class="combos-wrap" id="combosWrap"></div>
-  </div>
-
-  <!-- Actions -->
-  <div class="s-section">
-    <button class="btn primary full" id="runBtn" disabled onclick="runPipeline()">▶ Run Pipeline</button>
-    <button class="btn full" onclick="resetAll()">↺ Reset</button>
-    <button class="btn full" id="exportBtn" onclick="exportCSV()" style="display:none;">↓ Export CSV</button>
-  </div>
-
-  <div class="info-box">
-    <strong style="color:var(--muted);">How it works:</strong><br/>
-    1. Paste Spyne login token once<br/>
-    2. Upload folder<br/>
-    3. Enter bg_id per combo<br/>
-    4. Click Run Pipeline ✅<br/><br/>
-    <strong style="color:var(--muted);">Token is saved in browser</strong><br/>
-    No need to paste again next time!
-  </div>
-
-</div>
-
-<div class="main">
-  <div class="stats">
-    <div class="stat"><div class="stat-lbl">VINs Detected</div><div class="stat-val blue" id="sVins">0</div></div>
-    <div class="stat"><div class="stat-lbl">Images Uploaded</div><div class="stat-val green" id="sUploaded">0</div></div>
-    <div class="stat"><div class="stat-lbl">Spyne Submitted</div><div class="stat-val amber" id="sSpyne">0</div></div>
-    <div class="stat"><div class="stat-lbl">Errors</div><div class="stat-val red" id="sErrors">0</div></div>
-  </div>
-
-  <div class="log-wrap">
-    <div class="log-head"><span>Activity Log</span><button class="btn sm" onclick="clearLog()">Clear</button></div>
-    <div class="log-body" id="logBody"></div>
-  </div>
-
-  <div class="tbl-head">
     <div>
-      <div class="tbl-title">Processing Queue</div>
-      <div class="tbl-sub" id="tblSub">Select a folder to populate the queue</div>
+      <div class="logo-text">Spyne</div>
+      <div class="logo-sub">Upload Dashboard</div>
     </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Workflows</div>
+    <div class="nav-item active" onclick="showPage('upload')" id="nav-upload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Bulk Upload
+      <span class="nav-badge" id="nb-upload">Files</span>
+    </div>
+    <div class="nav-item" onclick="showPage('migrate')" id="nav-migrate">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/><path d="M9 12h6M12 9v6"/></svg>
+      VIN Migration
+      <span class="nav-badge nav-badge-new" id="nb-migrate">New</span>
+    </div>
+    <div class="nav-section">Results</div>
+    <div class="nav-item" onclick="showPage('results')" id="nav-results">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Results Log
+      <span class="nav-badge" id="nb-results">0</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="color:var(--tx2);font-size:11px">Auth Token</div>
+    <div class="token-display" id="token-preview">Not set</div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Bulk Upload</div>
+    <div class="topbar-status">
+      <span class="status-dot" id="api-dot"></span>
+      <span id="api-status-text">Configure token</span>
+    </div>
+    <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="clearResults()">Clear</button>
   </div>
 
-  <div class="tbl-wrap">
-    <div id="emptyState" class="empty">
-      <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
-      <p>No folder selected</p>
-      <span style="font-size:12px;color:var(--hint);">Select your root folder from the sidebar</span>
+  <div class="content">
+
+    <!-- ══════════════════════════════════════════════
+         PAGE: BULK UPLOAD (existing flow)
+    ══════════════════════════════════════════════ -->
+    <div class="page active" id="page-upload">
+      <!-- Token -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Authentication
+        </div>
+        <div class="field-group">
+          <label class="field-label">Bearer Token <span style="color:var(--tx3)">(from console.spyne.ai → DevTools → any api.spyne.ai request → Authorization header)</span></label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="token" placeholder="eyJ..." oninput="onTokenChange(this.value)" style="flex:1">
+            <button class="btn btn-ghost" onclick="toggleToken()">Show</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Config -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14"/></svg>
+          Processing Config
+        </div>
+        <div class="section-grid">
+          <div class="field-group"><label class="field-label">User ID</label><input id="userId" placeholder="user_xxx"></div>
+          <div class="field-group"><label class="field-label">Background ID</label><input id="bgId" value="85433"></div>
+          <div class="field-group"><label class="field-label">Category ID</label><input id="catId" value="cat_d8R14zfNg"></div>
+          <div class="field-group"><label class="field-label">Template ID</label><input id="tplId" value=""></div>
+          <div class="field-group"><label class="field-label">Font Name</label><input id="fontName" value="Montserrat"></div>
+          <div class="field-group"><label class="field-label">Primary Color</label><input id="primColor" value="#FFFFFF"></div>
+          <div class="field-group"><label class="field-label">Music ID</label><input id="musicId" value=""></div>
+          <div class="field-group"><label class="field-label">Target Language</label><input id="tgtLang" value=""></div>
+          <div class="field-group"><label class="field-label">License Plate URL</label><input id="lpUrl" value=""></div>
+        </div>
+      </div>
+
+      <!-- Capsule Upload -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Upload
+        </div>
+
+        <!-- Capsule toggle -->
+        <div class="capsule-wrap" id="upload-capsule">
+          <!-- Left half: folder -->
+          <label class="capsule-half" id="cap-folder" title="root / enterprise / team / VIN / images">
+            <input type="file" id="folderInput" webkitdirectory multiple accept="image/*" onchange="handleFolderSelect(this.files)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            Upload Folder
+          </label>
+          <div class="capsule-divider"></div>
+          <!-- Right half: CSV (migration) -->
+          <label class="capsule-half" id="cap-csv" title=".csv / .xlsx / .xls">
+            <input type="file" id="folderCsvInput" accept=".csv,.xlsx,.xls" onchange="handleCapsuleCsv(this.files[0])">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            Upload CSV
+          </label>
+        </div>
+
+        <!-- Info strip -->
+        <div class="capsule-info">
+          <div class="capsule-info-item" id="cap-folder-info" style="opacity:.4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span style="color:var(--tx3);font-size:11px">root / enterprise / team / VIN / images</span>
+          </div>
+          <div class="capsule-info-item" id="cap-csv-info" style="opacity:.4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span style="color:var(--tx3);font-size:11px">.csv / .xlsx with Old_Enterprise_id, Old_TeamId, Vin_name…</span>
+          </div>
+        </div>
+
+        <!-- Loaded states -->
+        <div id="cap-folder-loaded" style="display:none;margin-top:12px">
+          <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--gn)" id="folder-summary"></span>
+            <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="clearFolder()">✕ Clear</button>
+          </div>
+          <div class="preview-table-wrap">
+            <table><thead><tr><th>Enterprise</th><th>Team</th><th>VIN</th><th>Images</th></tr></thead>
+            <tbody id="folder-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="cap-csv-loaded" style="display:none;margin-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge badge-ok" id="cap-csv-badge">0 rows loaded</span>
+              <span style="font-size:11px;color:var(--tx3)" id="cap-csv-filename"></span>
+            </div>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="showPage('migrate')">
+              Open in Migration →
+            </button>
+          </div>
+          <p class="hint">CSV loaded. Switch to the <strong style="color:var(--ac)">VIN Migration</strong> tab to preview rows and start the upload.</p>
+        </div>
+
+        <!-- Legacy folder-preview id kept for compatibility -->
+        <div id="folder-preview" style="display:none"></div>
+      </div>
+
+      <!-- Run -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Upload
+        </div>
+        <!-- Phases -->
+        <div id="progress-section" style="margin-bottom:16px">
+          <div class="progress-block">
+            <div class="progress-header"><span class="progress-label" id="lb1">Phase 1: Presigned URLs</span><span class="progress-pct" id="pc1">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="pb1"></div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header"><span class="progress-label" id="lb2">Phase 2: S3 Upload</span><span class="progress-pct" id="pc2">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="pb2"></div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header"><span class="progress-label" id="lb3">Phase 3: Bulk Process</span><span class="progress-pct" id="pc3">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="pb3"></div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header"><span class="progress-label" id="lb4">Phase 4: Status Poll</span><span class="progress-pct" id="pc4">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="pb4"></div></div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="run-btn" onclick="runUpload()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Start Upload
+          </button>
+          <button class="btn btn-ghost" id="stop-btn" style="display:none" onclick="stopUpload()">Stop</button>
+          <button class="btn btn-ghost" onclick="exportCSV('upload')">Export CSV</button>
+        </div>
+        <div class="divider"></div>
+        <div class="log-box" id="upload-log"></div>
+      </div>
+    </div><!-- /page-upload -->
+
+
+    <!-- ══════════════════════════════════════════════
+         PAGE: VIN MIGRATION (NEW FLOW)
+    ══════════════════════════════════════════════ -->
+    <div class="page" id="page-migrate">
+
+      <!-- Step indicator -->
+      <div class="migration-steps" id="mig-steps">
+        <div class="mstep active" id="ms1"><span class="mstep-num">01</span>Upload CSV</div>
+        <div class="mstep" id="ms2"><span class="mstep-num">02</span>Preview</div>
+        <div class="mstep" id="ms3"><span class="mstep-num">03</span>Fetch Images</div>
+        <div class="mstep" id="ms4"><span class="mstep-num">04</span>Upload</div>
+        <div class="mstep" id="ms5"><span class="mstep-num">05</span>Done</div>
+      </div>
+
+      <!-- Token reminder -->
+      <div class="card" style="border-color:rgba(200,255,0,.15);background:var(--ac-bg)">
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="color:var(--ac)">Make sure your Bearer Token is set in the Bulk Upload tab before running migration.</span>
+        </div>
+      </div>
+
+      <!-- Processing Config for Migration -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14"/></svg>
+          Migration Processing Config
+        </div>
+        <div class="section-grid">
+          <div class="field-group"><label class="field-label">User ID</label><input id="mig-userId" placeholder="user_xxx"></div>
+          <div class="field-group"><label class="field-label">Background ID</label><input id="mig-bgId" value="85433"></div>
+          <div class="field-group"><label class="field-label">Category ID</label><input id="mig-catId" value="cat_d8R14zfNg"></div>
+          <div class="field-group"><label class="field-label">Template ID</label><input id="mig-tplId" value=""></div>
+        </div>
+      </div>
+
+      <!-- STEP 1: Upload CSV/Excel — capsule -->
+      <div class="card" id="mig-step1-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Step 1 — Select Source Files
+        </div>
+
+        <!-- Same capsule: folder (inactive here) + CSV (active) -->
+        <div class="capsule-wrap" id="mig-upload-capsule">
+          <label class="capsule-half" id="mig-cap-folder" title="root / enterprise / team / VIN / images">
+            <input type="file" id="mig-folderInput" webkitdirectory multiple accept="image/*" onchange="handleFolderSelect(this.files)" style="pointer-events:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            Upload Folder
+          </label>
+          <div class="capsule-divider"></div>
+          <label class="capsule-half active" id="mig-cap-csv" title=".csv / .xlsx">
+            <input type="file" id="mig-file-input" accept=".csv,.xlsx,.xls" onchange="handleMigrationFile(this.files[0])">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            Upload CSV
+          </label>
+        </div>
+
+        <!-- Info strip -->
+        <div class="capsule-info" style="margin-top:10px">
+          <div class="capsule-info-item" style="opacity:.35">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span style="color:var(--tx3);font-size:11px">Folder (not used in migration)</span>
+          </div>
+          <div class="capsule-info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span style="color:var(--tx2);font-size:11px">Required cols: <span class="chip">Old_Enterprise_id</span> <span class="chip">Old_TeamId</span> <span class="chip">Vin_name</span> <span class="chip">New_Enterprise_id</span> <span class="chip">New_TeamId</span></span>
+          </div>
+        </div>
+
+        <div id="mig-column-error" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(255,95,95,.08);border:1px solid rgba(255,95,95,.2);border-radius:var(--r);font-size:12px;color:var(--rd)"></div>
+      </div>
+
+      <!-- STEP 2: Preview -->
+      <div class="card" id="mig-step2-card" style="display:none">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Step 2 — Preview Rows
+        </div>
+        <div class="stats-row" id="mig-stats" style="margin-bottom:14px">
+          <div class="stat-card"><div class="stat-val" id="mig-stat-total">0</div><div class="stat-lab">Total Rows</div></div>
+          <div class="stat-card"><div class="stat-val" id="mig-stat-ent">0</div><div class="stat-lab">Source Enterprises</div></div>
+          <div class="stat-card"><div class="stat-val" id="mig-stat-dest">0</div><div class="stat-lab">Dest Enterprises</div></div>
+          <div class="stat-card"><div class="stat-val" id="mig-stat-vins">0</div><div class="stat-lab">Unique VINs</div></div>
+        </div>
+        <div class="preview-table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th>Old Ent</th><th>Old Team</th><th>VIN Name</th>
+              <th>New Ent</th><th>New Team</th>
+              <th>Images Found</th><th>Status</th>
+            </tr></thead>
+            <tbody id="mig-preview-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:14px" class="btn-row">
+          <button class="btn btn-primary" onclick="startFetchImages()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Fetch Images from Metabase
+          </button>
+          <button class="btn btn-ghost" onclick="resetMigration()">Reset</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Fetch images progress -->
+      <div class="card" id="mig-step3-card" style="display:none">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          Step 3 — Fetching Image URLs from Metabase
+        </div>
+        <div class="progress-block" style="margin-bottom:12px">
+          <div class="progress-header">
+            <span class="progress-label" id="mig-fetch-label">Querying Metabase…</span>
+            <span class="progress-pct" id="mig-fetch-pct">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="mig-fetch-bar"></div></div>
+        </div>
+        <div class="log-box" id="mig-fetch-log" style="height:180px"></div>
+
+        <!-- After fetch: image review table -->
+        <div id="mig-images-review" style="display:none;margin-top:16px">
+          <div class="card-title" style="margin-bottom:10px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+            Image URLs Found
+          </div>
+          <div class="preview-table-wrap" style="max-height:300px">
+            <table>
+              <thead><tr><th>VIN Name</th><th>Old Ent</th><th>Old Team</th><th>Images</th><th>Categories</th><th>Status</th></tr></thead>
+              <tbody id="mig-images-tbody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:14px" class="btn-row">
+            <button class="btn btn-primary" onclick="startMigrationUpload()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Upload to New Accounts
+            </button>
+            <button class="btn btn-ghost" onclick="exportMigrationCSV()">Export Image List</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: Upload progress -->
+      <div class="card" id="mig-step4-card" style="display:none">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Step 4 — Posting to New Accounts
+        </div>
+        <div id="mig-upload-phases">
+          <div class="progress-block">
+            <div class="progress-header"><span class="progress-label" id="mig-lb1">bulk/process (Metabase URLs → new account)</span><span class="progress-pct" id="mig-pc1">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="mig-pb1"></div></div>
+          </div>
+          <div class="progress-block" style="opacity:.35">
+            <div class="progress-header"><span class="progress-label" id="mig-lb2">Presign / S3 upload</span><span class="progress-pct" id="mig-pc2">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="mig-pb2"></div></div>
+          </div>
+          <div class="progress-block" style="opacity:.35">
+            <div class="progress-header"><span class="progress-label" id="mig-lb3">S3 PUT</span><span class="progress-pct" id="mig-pc3">—</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="mig-pb3"></div></div>
+          </div>
+          <p class="hint" style="margin-top:8px">Phases 2 &amp; 3 are skipped — Metabase image URLs are passed directly into <span class="chip">bulk/process</span></p>
+        </div>
+        <div class="log-box" id="mig-upload-log" style="margin-top:12px;height:260px"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-ghost" onclick="exportMigrationResults()">Export Results</button>
+        </div>
+      </div>
+
+    </div><!-- /page-migrate -->
+
+
+    <!-- ══════════════════════════════════════════════
+         PAGE: RESULTS
+    ══════════════════════════════════════════════ -->
+    <div class="page" id="page-results">
+      <div class="card">
+        <div class="card-title">Upload Results</div>
+        <div class="stats-row" style="margin-bottom:16px">
+          <div class="stat-card"><div class="stat-val" id="r-total">0</div><div class="stat-lab">Total VINs</div></div>
+          <div class="stat-card"><div class="stat-val" id="r-ok" style="color:var(--gn)">0</div><div class="stat-lab">Processed</div></div>
+          <div class="stat-card"><div class="stat-val" id="r-fail" style="color:var(--rd)">0</div><div class="stat-lab">Failed</div></div>
+          <div class="stat-card"><div class="stat-val" id="r-pend" style="color:var(--am)">0</div><div class="stat-lab">Pending</div></div>
+        </div>
+        <div id="results-empty" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          No results yet. Run an upload or migration first.
+        </div>
+        <div class="table-wrap" id="results-table-wrap" style="display:none">
+          <table>
+            <thead><tr>
+              <th>VIN / SKU</th><th>Enterprise</th><th>Team</th>
+              <th>Images</th><th>Status</th><th>Note</th>
+            </tr></thead>
+            <tbody id="results-tbody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn btn-ghost" onclick="exportCSV('results')">Export CSV</button>
+          <button class="btn btn-danger" style="font-size:11px" onclick="clearResults()">Clear All</button>
+        </div>
+      </div>
     </div>
-    <table id="vinTable" style="display:none;">
-      <thead>
-        <tr>
-          <th>Enterprise</th><th>Team</th><th>VIN</th>
-          <th>BG ID</th><th>Images</th><th>Uploaded</th>
-          <th>S3</th><th>Spyne</th><th>Result</th>
-        </tr>
-      </thead>
-      <tbody id="vinBody"></tbody>
-    </table>
-  </div>
-</div>
-</div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
 
 <script>
-const API_BASE = 'https://ylyqnhitu9.execute-api.ap-south-1.amazonaws.com';
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+var uploadState = {
+  running: false,
+  stop: false,
+  vinMap: {},       // { enterprise_team_vin: [files] }
+  results: []
+};
 
-let vinMap={}, comboMap={}, results={};
-let tUploaded=0, tSpyne=0, tErrors=0;
-let loginToken=null, loginUserId=null;
+var migState = {
+  rows: [],         // parsed CSV rows
+  imageData: [],    // { row, images: [{url, category}] }
+  results: [],      // upload results
+  running: false,
+  step: 1
+};
 
-/* ─── Login token ─── */
-function saveLoginToken() {
-  const val = document.getElementById('loginTokenInput').value.trim();
-  if (!val) { alert('Please paste your Spyne login token'); return; }
-  loginToken = val;
-  // Extract userId from userDetails key in localStorage first
-  try {
-    const ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
-    loginUserId = ud.userId || ud._id || '';
-  } catch(e) {}
-  // Fallback: try to decode from token
-  if (!loginUserId) {
-    try {
-      const b64 = val.replace('Bearer ','');
-      const data = JSON.parse(atob(b64));
-      loginUserId = data.userId || data.user_id || '';
-    } catch(e) {}
+var allResults = [];
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+  var titles = { upload: 'Bulk Upload', migrate: 'VIN Migration', results: 'Results Log' };
+  document.getElementById('page-title').textContent = titles[id] || id;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOKEN
+// ═══════════════════════════════════════════════════════════════
+function getToken() { return (document.getElementById('token').value || '').trim(); }
+function onTokenChange(v) {
+  var tok = v.trim();
+  var dot = document.getElementById('api-dot');
+  var txt = document.getElementById('api-status-text');
+  var prev = document.getElementById('token-preview');
+  if (!tok) { dot.className = 'status-dot'; txt.textContent = 'Configure token'; prev.textContent = 'Not set'; return; }
+  dot.className = 'status-dot ok';
+  txt.textContent = 'Token set';
+  prev.textContent = tok.substring(0, 20) + '…';
+}
+function toggleToken() {
+  var el = document.getElementById('token');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UPLOAD PAGE — Folder handling
+// ═══════════════════════════════════════════════════════════════
+function handleFolderSelect(files) {
+  var map = {};
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    if (!f.type.startsWith('image/')) continue;
+    var parts = f.webkitRelativePath.split('/');
+    if (parts.length < 4) continue;
+    var ent = parts[parts.length - 4];
+    var team = parts[parts.length - 3];
+    var vin = parts[parts.length - 2];
+    var key = ent + '||' + team + '||' + vin;
+    if (!map[key]) map[key] = { ent: ent, team: team, vin: vin, files: [] };
+    map[key].files.push(f);
+  }
+  uploadState.vinMap = map;
+  var keys = Object.keys(map);
+  var entCount = new Set(keys.map(function(k){ return k.split('||')[0]; })).size;
+
+  // capsule: mark folder half as loaded (green)
+  var capFolder = document.getElementById('cap-folder');
+  if (capFolder) { capFolder.className = 'capsule-half loaded'; }
+
+  // info strip
+  var infoEl = document.getElementById('cap-folder-info');
+  if (infoEl) {
+    infoEl.style.opacity = '1';
+    infoEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>' +
+      '<span style="color:var(--gn);font-size:11px">' + keys.length + ' VINs, ' + entCount + ' enterprise(s)</span>' +
+      '<button class="capsule-clear" onclick="clearFolder()" title="Clear">×</button>';
   }
 
-  document.getElementById('loginHint').textContent = '✓ Token saved!';
-  document.getElementById('loginHint').className = 'hint ok';
-  document.getElementById('spyneDot').style.color = '#3ecf8e';
-  log('ok', 'Login token saved · userId: ' + loginUserId);
-  // Generate tokens for loaded combos
-  if(Object.keys(comboMap).length) fetchAllTokens();
-}
-
-function clearLoginToken() {
-  loginToken = null; loginUserId = null;
-
-  document.getElementById('loginTokenInput').value = '';
-  document.getElementById('loginHint').textContent = 'Token cleared';
-  document.getElementById('loginHint').className = 'hint muted';
-  document.getElementById('spyneDot').style.color = 'var(--hint)';
-  log('info', 'Login token cleared');
-}
-
-
-
-/* ─── Generate tokens enterprise by enterprise via popup ─── */
-
-async function fetchAllTokens() {
-  // Group combos by enterprise
-  const entGroups = {};
-  Object.keys(comboMap).forEach(k => {
-    const ent = comboMap[k].ent;
-    if (!entGroups[ent]) entGroups[ent] = [];
-    entGroups[ent].push(k);
+  // table
+  document.getElementById('folder-summary').textContent = keys.length + ' VINs across ' + entCount + ' enterprises';
+  var tb = document.getElementById('folder-tbody');
+  tb.innerHTML = '';
+  keys.slice(0, 50).forEach(function(k) {
+    var v = map[k];
+    tb.insertAdjacentHTML('beforeend',
+      '<tr><td class="td-mono">' + v.ent + '</td><td class="td-mono">' + v.team +
+      '</td><td class="td-mono">' + v.vin + '</td><td>' + v.files.length + '</td></tr>');
   });
+  if (keys.length > 50) tb.insertAdjacentHTML('beforeend', '<tr><td colspan="4" style="color:var(--tx3);text-align:center">… and ' + (keys.length - 50) + ' more</td></tr>');
 
-  // Process each enterprise one by one
-  for (const ent of Object.keys(entGroups)) {
-    const combos = entGroups[ent];
-    const firstTeam = comboMap[combos[0]].team;
-    log('blue', `Processing enterprise: ${ent}`);
+  document.getElementById('cap-folder-loaded').style.display = '';
+  document.getElementById('cap-csv-loaded').style.display = 'none';
+  document.getElementById('nb-upload').textContent = keys.length + ' VINs';
+}
 
-    // Open Spyne with this enterprise's URL to switch session
-    const spyneUrl = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
-    const entToken = await getEnterpriseToken(spyneUrl, ent);
-
-    if (!entToken) {
-      log('err', `[${ent}] Could not get enterprise token`);
-      combos.forEach(k => {
-        const stEl = document.getElementById('st-' + k.replace(/\//g,'_'));
-        if (stEl) { stEl.textContent='✗ No token'; stEl.className='cs err'; }
-      });
-      continue;
-    }
-
-    // Generate tokens for all teams in this enterprise
-    for (const comboKey of combos) {
-      await generateTokenViaLambda(comboKey, entToken.tok, entToken.uid);
-    }
+function clearFolder() {
+  uploadState.vinMap = {};
+  document.getElementById('folderInput').value = '';
+  document.getElementById('cap-folder-loaded').style.display = 'none';
+  document.getElementById('nb-upload').textContent = 'Files';
+  var capFolder = document.getElementById('cap-folder');
+  if (capFolder) capFolder.className = 'capsule-half';
+  var infoEl = document.getElementById('cap-folder-info');
+  if (infoEl) {
+    infoEl.style.opacity = '.4';
+    infoEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><span style="color:var(--tx3);font-size:11px">root / enterprise / team / VIN / images</span>';
   }
 }
 
-function getEnterpriseToken(spyneUrl, ent) {
-  return new Promise((resolve) => {
-    log('info', `Opening Spyne for enterprise ${ent}…`);
-    const popup = window.open(spyneUrl, `ent_${ent}`, 'width=200,height=200,left=0,top=0');
+function handleCapsuleCsv(file) {
+  if (!file) return;
+  // forward to migration handler AND show loaded state in bulk upload tab
+  handleMigrationFile(file);
+  // mark capsule CSV half loaded
+  var capCsv = document.getElementById('cap-csv');
+  if (capCsv) capCsv.className = 'capsule-half loaded';
+  var infoEl = document.getElementById('cap-csv-info');
+  if (infoEl) {
+    infoEl.style.opacity = '1';
+    infoEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+      '<span class="capsule-info-name">' + escHtml(file.name) + '</span>';
+  }
+  document.getElementById('cap-csv-badge').textContent = migState.rows.length + ' rows loaded';
+  document.getElementById('cap-csv-filename').textContent = file.name;
+  document.getElementById('cap-csv-loaded').style.display = '';
+  document.getElementById('cap-folder-loaded').style.display = 'none';
+}
 
-    if (!popup) {
-      log('warn', `Popup blocked — allow popups for this site!`);
-      // Fallback to current loginToken
-      resolve({ tok: loginToken, uid: loginUserId });
+// ═══════════════════════════════════════════════════════════════
+// UPLOAD — Run (4-phase)
+// ═══════════════════════════════════════════════════════════════
+function addLog(msg, type, logId) {
+  var id = logId || 'upload-log';
+  var el = document.getElementById(id);
+  var cls = { ok:'l-ok', err:'l-err', warn:'l-warn', sep:'l-sep', info:'l-info', new:'l-new' }[type] || 'l-info';
+  var ts = new Date().toTimeString().substr(0, 8);
+  el.insertAdjacentHTML('beforeend', '<div class="' + cls + '">' + ts + ' ' + escHtml(msg) + '</div>');
+  el.scrollTop = el.scrollHeight;
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function setPb(id, pct) { document.getElementById(id).style.width = pct + '%'; }
+function setPct(id, v) { document.getElementById(id).textContent = v; }
+
+async function runUpload() {
+  var tok = getToken();
+  if (!tok) { showToast('Set the Bearer Token first'); return; }
+  var keys = Object.keys(uploadState.vinMap);
+  if (!keys.length) { showToast('Select a folder first'); return; }
+  uploadState.running = true;
+  uploadState.stop = false;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('stop-btn').style.display = '';
+  var logId = 'upload-log';
+  document.getElementById(logId).innerHTML = '';
+  ['pb1','pb2','pb3','pb4'].forEach(function(id){ setPb(id, 0); });
+
+  addLog('Starting — ' + keys.length + ' VINs', 'sep', logId);
+
+  var userId = document.getElementById('userId').value.trim();
+  var bgId = document.getElementById('bgId').value.trim();
+  var catId = document.getElementById('catId').value.trim();
+  var tplId = document.getElementById('tplId').value.trim();
+  var fontName = document.getElementById('fontName').value.trim();
+  var primColor = document.getElementById('primColor').value.trim();
+  var musicId = document.getElementById('musicId').value.trim();
+  var tgtLang = document.getElementById('tgtLang').value.trim();
+  var lpUrl = document.getElementById('lpUrl').value.trim();
+
+  // Phase 1: presigned
+  addLog('━━ Phase 1: Presigning', 'sep', logId);
+  setPct('lb1', 'Generating presigned URLs…');
+  var pmap = {};
+  var done1 = 0;
+  for (var ki = 0; ki < keys.length; ki++) {
+    if (uploadState.stop) break;
+    var k = keys[ki];
+    var v = uploadState.vinMap[k];
+    var fileList = v.files.map(function(f) {
+      return { fileName: v.ent + '/' + v.team + '/' + v.vin + '/' + f.name, file: f };
+    });
+    try {
+      var resp = await fetch('https://api.spyne.ai/inventory/v2/gen-presigned', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileNames: fileList.map(x => x.fileName) })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var data = await resp.json();
+      var entries = (data.data || data.urls || []).map(function(e, i) {
+        return { id: e.id || e.fileId, s3url: e.url || e.presignedUrl, pubUrl: e.accessUrl || '', file: fileList[i].file };
+      });
+      pmap[k] = entries;
+      addLog('✓ ' + v.vin + ' (' + entries.length + ' URLs)', 'ok', logId);
+    } catch(e) {
+      addLog('✗ ' + v.vin + ': ' + e.message, 'err', logId);
+    }
+    done1++;
+    var p1p = Math.round(done1 / keys.length * 100);
+    setPb('pb1', p1p); setPct('pc1', p1p + '%');
+    setPct('lb1', 'Phase 1: ' + done1 + '/' + keys.length);
+  }
+  setPb('pb1', 100); setPct('pc1', '100%');
+
+  // Phase 2: S3 PUT
+  addLog('━━ Phase 2: S3 Upload', 'sep', logId);
+  var pmapKeys = Object.keys(pmap);
+  var totalImgs = pmapKeys.reduce(function(a, k) { return a + pmap[k].length; }, 0);
+  var done2 = 0;
+  for (var pi = 0; pi < pmapKeys.length; pi++) {
+    if (uploadState.stop) break;
+    var pk = pmapKeys[pi];
+    var entries = pmap[pk];
+    for (var ei = 0; ei < entries.length; ei++) {
+      var en = entries[ei];
+      if (!en.s3url) { done2++; continue; }
+      try {
+        var put = await fetch(en.s3url, { method: 'PUT', headers: { 'Content-Type': en.file.type || 'image/jpeg' }, body: en.file });
+        if (!put.ok) throw new Error('S3 ' + put.status);
+      } catch(e) {
+        addLog('  ✗ PUT ' + en.file.name + ': ' + e.message, 'err', logId);
+      }
+      done2++;
+      setPb('pb2', Math.round(done2 / totalImgs * 100));
+      setPct('pc2', Math.round(done2 / totalImgs * 100) + '%');
+    }
+  }
+  addLog('✓ Phase 2 done', 'ok', logId);
+  setPb('pb2', 100); setPct('pc2', '100%');
+
+  // Phase 3: bulk/process
+  addLog('━━ Phase 3: Bulk Process', 'sep', logId);
+  var groups = {};
+  pmapKeys.forEach(function(k) {
+    var parts = k.split('||');
+    var gk = parts[0] + '||' + parts[1];
+    if (!groups[gk]) groups[gk] = [];
+    groups[gk].push({ vin: parts[2], entries: pmap[k] });
+  });
+  var gKeys = Object.keys(groups);
+  var done3 = 0;
+  for (var gi = 0; gi < gKeys.length; gi++) {
+    if (uploadState.stop) break;
+    var gk2 = gKeys[gi];
+    var gParts = gk2.split('||');
+    var ent2 = gParts[0], team2 = gParts[1];
+    var vinItems = groups[gk2];
+    var bulkData = vinItems.map(function(vi) {
+      var fc = vi.entries.length;
+      return {
+        vehicleData: { vehicleMetadataUpdates: { vinDetails: { vehicleSnap: { make:{value:''}, model:{value:''}, year:{value:null}, trim:{value:''} } } }, vin: vi.vin },
+        inputData: { platform: 'CONSOLE', dataType: ['IMAGE'], metaData: {}, assets: {
+          images: vi.entries.map(function(e) {
+            return { id: e.id, url: e.pubUrl || e.s3url, isVdp: false,
+              metaData: { type: e.file.type || 'image/jpeg', name: e.file.name, size: e.file.size },
+              processingData: { bannerApply: false }, isNew: true, isDeleted: false };
+          }), video: []
+        }},
+        processingConfigs: {
+          backgroundId: bgId,
+          catalog: { bannerUrl: null, bannerCopy: false, licensePlateUrl: lpUrl, frameCount: fc, backgroundId: bgId, category_id: catId, background_type: 'legacy', number_plate_url: lpUrl },
+          spin: { detectHotspot: false, spinFrameCount: fc, catalogFrameCount: fc, backgroundId: bgId, licensePlateUrl: lpUrl },
+          featureVideo: { templateId: tplId, font: { text: fontName, key: fontName }, colors: { primaryColor: primColor }, musicId: musicId, voiceId: '', language: '', targetLanguage: tgtLang }
+        },
+        action: 'create'
+      };
+    });
+    try {
+      var pResp = await fetch('https://api.spyne.ai/inventory/v2/bulk/process', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userData: { enterpriseId: ent2, teamId: team2, userId: userId }, bulkData: bulkData })
+      });
+      if (!pResp.ok) throw new Error('HTTP ' + pResp.status);
+      addLog('✓ Group ' + ent2 + '/' + team2 + ': ' + vinItems.length + ' VINs queued', 'ok', logId);
+      // add to results
+      vinItems.forEach(function(vi) {
+        addToResults({ vin: vi.vin, enterprise: ent2, team: team2, images: vi.entries.length, status: 'pending', note: '' });
+      });
+    } catch(e) {
+      addLog('✗ Group ' + ent2 + ': ' + e.message, 'err', logId);
+    }
+    done3++;
+    setPb('pb3', Math.round(done3 / gKeys.length * 100));
+    setPct('pc3', Math.round(done3 / gKeys.length * 100) + '%');
+  }
+  setPb('pb3', 100); setPct('pc3', '100%');
+
+  // Phase 4: status poll
+  addLog('━━ Phase 4: Polling Status', 'sep', logId);
+  var allVins = pmapKeys.map(function(k) { return k.split('||')[2]; });
+  try {
+    var sResp = await fetch('https://api.spyne.ai/inventory/v2/bulk/status', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'vin', data: allVins })
+    });
+    if (sResp.ok) {
+      var sData = await sResp.json();
+      addLog('✓ Status received for ' + allVins.length + ' VINs', 'ok', logId);
+      updateResultsStatus(sData);
+    }
+  } catch(e) {
+    addLog('⚠ Status poll failed: ' + e.message, 'warn', logId);
+  }
+  setPb('pb4', 100); setPct('pc4', '100%');
+
+  addLog('━━ Done', 'sep', logId);
+  uploadState.running = false;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('stop-btn').style.display = 'none';
+  renderResultsPage();
+}
+
+function stopUpload() {
+  uploadState.stop = true;
+  addLog('⚠ Stopping after current operation…', 'warn', 'upload-log');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════════════════════════
+function addToResults(r) {
+  allResults.push(r);
+  document.getElementById('nb-results').textContent = allResults.length;
+}
+function renderResultsPage() {
+  var tb = document.getElementById('results-tbody');
+  tb.innerHTML = '';
+  var totals = { total: 0, ok: 0, fail: 0, pend: 0 };
+  allResults.forEach(function(r) {
+    totals.total++;
+    if (r.status === 'completed' || r.status === 'done') totals.ok++;
+    else if (r.status === 'failed' || r.status === 'error') totals.fail++;
+    else totals.pend++;
+    var bdg = r.status === 'completed' ? 'badge-ok' : r.status === 'failed' ? 'badge-err' : r.status === 'uploading' ? 'badge-new' : 'badge-pend';
+    tb.insertAdjacentHTML('beforeend',
+      '<tr><td class="td-mono">' + escHtml(r.vin||'') + '</td><td class="td-mono">' + escHtml(r.enterprise||'') +
+      '</td><td class="td-mono">' + escHtml(r.team||'') + '</td><td>' + (r.images||0) +
+      '</td><td><span class="badge ' + bdg + '">' + escHtml(r.status) + '</span></td><td style="color:var(--tx3)">' + escHtml(r.note||'') + '</td></tr>');
+  });
+  ['total','ok','fail','pend'].forEach(function(k) {
+    document.getElementById('r-' + k).textContent = totals[k];
+  });
+  document.getElementById('results-empty').style.display = allResults.length ? 'none' : '';
+  document.getElementById('results-table-wrap').style.display = allResults.length ? '' : 'none';
+}
+function updateResultsStatus(data) {
+  var statusMap = {};
+  (data.data || data.statuses || []).forEach(function(s) {
+    statusMap[s.vin || s.key] = s.status || s.value;
+  });
+  allResults.forEach(function(r) {
+    if (statusMap[r.vin]) r.status = statusMap[r.vin];
+  });
+}
+function clearResults() {
+  allResults = [];
+  renderResultsPage();
+  document.getElementById('nb-results').textContent = '0';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MIGRATION — Step 1: Parse CSV/Excel
+// ═══════════════════════════════════════════════════════════════
+var REQUIRED_COLS = ['old_enterprise_id','old_teamid','vin_name','new_enterprise_id','new_teamid'];
+
+function handleMigrationFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var data = e.target.result;
+    var wb, rows;
+    try {
+      if (file.name.endsWith('.csv')) {
+        wb = XLSX.read(data, { type: 'string' });
+      } else {
+        wb = XLSX.read(data, { type: 'array' });
+      }
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var json = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      rows = json;
+    } catch(ex) {
+      showMigError('Failed to parse file: ' + ex.message);
+      return;
+    }
+    if (!rows.length) { showMigError('File is empty'); return; }
+
+    // Normalize headers
+    var normRows = rows.map(function(r) {
+      var out = {};
+      Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s\-]/g, '_')] = r[k]; });
+      return out;
+    });
+
+    // Check required cols
+    var firstRow = normRows[0];
+    var missing = REQUIRED_COLS.filter(function(c) { return !(c in firstRow); });
+    if (missing.length) {
+      showMigError('Missing columns: ' + missing.join(', ') + '. Got: ' + Object.keys(firstRow).join(', '));
       return;
     }
 
-    let done = false;
-    let attempts = 0;
-    const maxAttempts = 20; // 10 seconds max
-
-    const check = setInterval(() => {
-      attempts++;
-      try {
-        if (popup.closed) {
-          clearInterval(check);
-          if (!done) { done = true; resolve(null); }
-          return;
-        }
-        // Check if page loaded and enterprise switched
-        const tok = popup.localStorage.getItem('defaultBearerToken');
-        const ud  = popup.localStorage.getItem('userDetails');
-        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : '';
-
-        if (tok && !done) {
-          // Verify this token is for the correct enterprise
-          // by checking the token payload or just use it after waiting
-          if (attempts >= 6) { // Wait at least 3 seconds for enterprise to switch
-            done = true;
-            clearInterval(check);
-            popup.close();
-            log('ok', `Got token for enterprise ${ent} ✅`);
-            resolve({ tok, uid });
-          }
-        }
-      } catch(e) {
-        // Still loading
-      }
-
-      if (attempts >= maxAttempts && !done) {
-        clearInterval(check);
-        done = true;
-        try { popup.close(); } catch(e) {}
-        log('warn', `Timeout for ${ent} — using current token`);
-        resolve({ tok: loginToken, uid: loginUserId });
-      }
-    }, 500);
-  });
-}
-
-async function fetchToken(comboKey) {
-  // Individual token fetch - used when single combo needed
-  const combo = comboMap[comboKey];
-  await generateTokenViaLambda(comboKey, loginToken, loginUserId);
-}
-
-async function generateTokenViaLambda(comboKey, tok, uid) {
-  const combo = comboMap[comboKey];
-  const id    = comboKey.replace(/\//g,'_');
-  const stEl  = document.getElementById('st-'+id);
-  if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
-  try {
-    const r = await fetch(API_BASE + '/generate-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        loginToken:   tok,
-        enterpriseId: combo.ent,
-        teamId:       combo.team,
-        userId:       uid
-      })
-    });
-    const d = await r.json();
-    if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
-    combo.token = d.token;
-    if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='cs ok'; }
-    log('ok', `[${combo.ent}/${combo.team}] Token ready ✅`);
-  } catch(err) {
-    combo.token = null;
-    if (stEl) { stEl.textContent='✗ Failed'; stEl.className='cs err'; }
-    log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
+    document.getElementById('mig-column-error').style.display = 'none';
+    migState.rows = normRows;
+    buildMigrationPreview(normRows);
+    setMigStep(2);
+    // mark migration capsule CSV half as loaded
+    var migCapCsv = document.getElementById('mig-cap-csv');
+    if (migCapCsv) migCapCsv.className = 'capsule-half loaded';
+    var migCapFolder = document.getElementById('mig-cap-folder');
+    if (migCapFolder) migCapFolder.className = 'capsule-half';
+  };
+  if (file.name.endsWith('.csv')) {
+    reader.readAsText(file);
+  } else {
+    reader.readAsArrayBuffer(file);
   }
 }
 
-/* ─── Auto-fetch bg_id per combo ─── */
-async function fetchBgId(comboKey, tok) {
-  const combo = comboMap[comboKey];
-  const id    = comboKey.replace(/\//g,'_');
-  const bgEl  = document.getElementById('bg-'+id);
-  const stBg  = document.getElementById('stbg-'+id);
-
-  const token = tok || loginToken;
-  if (!token) { log('err', `[${comboKey}] No token for bg_id fetch`); return; }
-  log('info', `[${combo.ent}/${combo.team}] Fetching bg_id…`);
-  if (stBg) { stBg.textContent = 'Fetching bg…'; stBg.style.color = 'var(--amber)'; }
-
-  try {
-    const r = await fetch(API_BASE + '/get-bg-id', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enterpriseId: combo.ent, teamId: combo.team, loginToken: token })
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'API failed');
-
-    const defaultBg = d.defaultBackground;
-    const teamBgs   = d.teamBgs || [];
-
-    if (defaultBg) {
-      // Use default_background directly
-      combo.bgId = String(defaultBg);
-      if (bgEl) {
-        bgEl.value = String(defaultBg);
-        bgEl.style.borderColor = 'var(--green)';
-      }
-      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
-      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${defaultBg}`);
-
-    } else if (teamBgs.length === 1) {
-      // Only one bg — use it
-      const bgId = teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || String(teamBgs[0]);
-      combo.bgId = String(bgId);
-      if (bgEl) {
-        bgEl.value = String(bgId);
-        bgEl.style.borderColor = 'var(--green)';
-      }
-      if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
-      log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${bgId}`);
-
-    } else if (teamBgs.length > 1) {
-      // Multiple bgs — show dropdown
-      const sel = document.createElement('select');
-      sel.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;';
-      sel.innerHTML = '<option value="">Select bg_id…</option>' +
-        teamBgs.map(bg => {
-          const bgId = bg.background_id || bg._id || bg.id || String(bg);
-          const bgName = bg.name || bg.title || bgId;
-          return `<option value="${bgId}">${bgName} (${bgId})</option>`;
-        }).join('');
-      sel.onchange = () => { combo.bgId = sel.value; };
-      if (bgEl) bgEl.parentNode.replaceChild(sel, bgEl);
-      if (stBg) { stBg.textContent = `${teamBgs.length} options`; stBg.style.color = 'var(--blue)'; }
-      log('info', `[${combo.ent}/${combo.team}] ${teamBgs.length} bg_ids available — select one`);
-
-    } else {
-      // No bg_id found — manual entry
-      if (stBg) { stBg.textContent = 'Enter manually'; stBg.style.color = 'var(--hint)'; }
-      log('warn', `[${combo.ent}/${combo.team}] No bg_id found — enter manually`);
-    }
-
-  } catch(err) {
-    if (stBg) { stBg.textContent = 'Manual entry'; stBg.style.color = 'var(--hint)'; }
-    log('warn', `[${combo.ent}/${combo.team}] bg_id fetch failed — enter manually`);
-  }
+function showMigError(msg) {
+  var el = document.getElementById('mig-column-error');
+  el.style.display = '';
+  el.textContent = '⚠ ' + msg;
 }
 
-/* ─── Folder input ─── */
-document.getElementById('fi').addEventListener('change', function(){ parseFolder(Array.from(this.files)); });
-const dz=document.getElementById('dz');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('hover');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('hover'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('hover');parseFolder(Array.from(e.dataTransfer.files));});
-
-function parseFolder(files) {
-  vinMap={}; comboMap={}; results={};
-  const IMG=/\.(jpg|jpeg|png|webp|gif|bmp|tiff?)$/i;
-  for (const f of files) {
-    const rel=f.webkitRelativePath||f.name;
-    const parts=rel.split('/').filter(Boolean);
-    if (parts.length<5||!IMG.test(parts[parts.length-1])) continue;
-    const [root,ent,team,vin]=parts;
-    const vk=`${ent}/${team}/${vin}`, ck=`${ent}/${team}`;
-    if (!vinMap[vk])    vinMap[vk]    = {ent,team,vin,files:[]};
-    if (!comboMap[ck])  comboMap[ck]  = {ent,team,bgId:'',token:null};
-    vinMap[vk].files.push({file:f, s3Key:parts.slice(1).join('/'), contentType:f.type||'image/jpeg'});
-  }
-  const vks=Object.keys(vinMap), cks=Object.keys(comboMap);
-  if (!vks.length){log('warn','No valid images found. Expected: root/enterprise/team/VIN/image.jpg');return;}
-  const total=vks.reduce((a,k)=>a+vinMap[k].files.length,0);
-  vks.forEach(k=>{results[k]={s3Urls:[],s3Status:'pending',spyneStatus:'pending',dealerVinID:'',errorMsg:''};});
-  renderCombos(cks);
-  renderTable(vks);
-  document.getElementById('sVins').textContent=vks.length;
-  document.getElementById('tblSub').textContent=`${vks.length} VINs · ${cks.length} combos · ${total} images`;
-  document.getElementById('runBtn').disabled=false;
-  log('blue',`Found ${vks.length} VINs · ${cks.length} combos · ${total} images`);
-
-
-}
-
-function renderCombos(keys) {
-  const wrap=document.getElementById('combosWrap');
-  wrap.innerHTML='';
-  keys.forEach(k=>{
-    const {ent,team}=comboMap[k];
-    const id=k.replace(/\//g,'_');
-    const vins=Object.keys(vinMap).filter(v=>v.startsWith(k+'/')).length;
-    const imgs=Object.keys(vinMap).filter(v=>v.startsWith(k+'/')).reduce((a,v)=>a+vinMap[v].files.length,0);
-    const c=document.createElement('div'); c.className='combo-card'; c.id='combo-'+id;
-    c.innerHTML=`
-      <div class="combo-header">
-        <span class="combo-ent">${esc(ent)}</span>
-        <span class="combo-sep">/</span>
-        <span class="combo-team">${esc(team)}</span>
-        <span class="combo-meta">${vins} VINs · ${imgs} imgs</span>
-        <span class="cs pending" id="st-${id}">Pending</span>
-      </div>
-      <div class="combo-row">
-        <label>BG ID</label>
-        <input type="text" id="bg-${id}" placeholder="Fetching…"
-          oninput="comboMap['${k}'].bgId=this.value.trim();" />
-        <span id="stbg-${id}" style="font-size:10px;color:var(--hint);white-space:nowrap;"></span>
-      </div>`;
-    wrap.appendChild(c);
-  });
-  document.getElementById('combosSection').style.display='block';
-
-  // bg_ids will be fetched after enterprise token is obtained in pipeline
-}
-
-function renderTable(keys) {
-  document.getElementById('emptyState').style.display='none';
-  document.getElementById('vinTable').style.display='table';
-  const tbody=document.getElementById('vinBody');
-  tbody.innerHTML='';
-  keys.forEach(k=>{
-    const v=vinMap[k],r=results[k],id=k.replace(/\//g,'_');
-    const tr=document.createElement('tr'); tr.id='row-'+id;
-    tr.innerHTML=`
-      <td><span class="tag ent">${esc(v.ent)}</span></td>
-      <td><span class="tag team">${esc(v.team)}</span></td>
-      <td style="font-family:var(--mono);font-size:12px;">${esc(v.vin)}</td>
-      <td id="bgc-${id}" style="font-family:var(--mono);font-size:12px;color:var(--muted);">—</td>
-      <td style="color:var(--muted);">${v.files.length}</td>
-      <td id="up-${id}" style="font-size:12px;color:var(--muted);">0/${v.files.length}</td>
-      <td id="s3-${id}">${mkBadge('pending')}</td>
-      <td id="sp-${id}">${mkBadge('pending',true)}</td>
-      <td id="dt-${id}" style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function mkBadge(s,sp){
-  if(s==='pending') return '<span class="badge pending">Pending</span>';
-  if(s==='running') return '<span class="badge running"><span class="spinner"></span> Running</span>';
-  if(s==='ok')      return `<span class="badge ${sp?'spyneok':'s3ok'}">✓ Done</span>`;
-  if(s==='error')   return '<span class="badge error">✗ Error</span>';
-  return '<span class="badge pending">—</span>';
-}
-
-function updateRow(k){
-  const id=k.replace(/\//g,'_'),r=results[k];
-  const ck=`${vinMap[k].ent}/${vinMap[k].team}`;
-  const s3el=document.getElementById('s3-'+id);
-  const spel=document.getElementById('sp-'+id);
-  const dtel=document.getElementById('dt-'+id);
-  const upel=document.getElementById('up-'+id);
-  const bgel=document.getElementById('bgc-'+id);
-  if(s3el) s3el.innerHTML=mkBadge(r.s3Status,false);
-  if(spel) spel.innerHTML=mkBadge(r.spyneStatus,true);
-  if(upel) upel.textContent=`${r.s3Urls.length}/${vinMap[k].files.length}`;
-  if(bgel) bgel.textContent=comboMap[ck]?.bgId||'—';
-  if(dtel){
-    if(r.spyneStatus==='ok' && r.dealerVinID) {
-      dtel.innerHTML=`<span style="color:var(--green)">✓ Submitted</span> <span style="color:var(--hint);font-family:var(--mono);font-size:10px;">${esc(r.dealerVinID.slice(0,8))}…</span>`;
-    } else if(r.spyneStatus==='error' && r.errorMsg) {
-      // Show friendly error reason
-      let reason = r.errorMsg;
-      if(reason.includes('401')) reason = '🔑 Auth failed — token issue';
-      else if(reason.includes('BG ID') || reason.includes('background') || reason.includes('Background')) reason = '🎨 Wrong Background ID';
-      else if(reason.includes('Enterprise') || reason.includes('enterprise')) reason = '🏢 Enterprise mismatch';
-      else if(reason.includes('Team') || reason.includes('team')) reason = '👥 Team not found';
-      else if(reason.includes('400')) reason = '⚠️ Bad request';
-      else if(reason.includes('500')) reason = '🔥 Server error';
-      dtel.innerHTML=`<span style="color:var(--red);font-size:12px;" title="${esc(r.errorMsg)}">${esc(reason.slice(0,40))}</span>`;
-    } else if(r.s3Status==='ok' && r.spyneStatus==='pending') {
-      dtel.innerHTML=`<span style="color:var(--muted)">${r.s3Urls.length} images ready</span>`;
-    } else if(r.errorMsg) {
-      dtel.innerHTML=`<span style="color:var(--red)">${esc(r.errorMsg.slice(0,40))}</span>`;
-    }
-  }
-}
-
-/* ─── Pipeline ─── */
-async function runPipeline() {
-  if (!loginToken) { alert('Please paste your Spyne login token first.'); return; }
-
-  // Generate tokens enterprise by enterprise
-  log('blue', 'Generating tokens per enterprise…');
-  await fetchAllTokens();
-
-  // Validate tokens
-  const noToken = Object.keys(comboMap).filter(k => !comboMap[k].token);
-  if (noToken.length) { alert('Could not generate tokens for:\n' + noToken.join('\n')); return; }
-
-
-  document.getElementById('runBtn').disabled=true;
-  document.getElementById('runBtn').innerHTML='<span class="spinner"></span> Running…';
-  setStatus('running','Uploading to S3…');
-  clearLog();
-  tUploaded=0;tSpyne=0;tErrors=0;updateStats();
-  const vinKeys=Object.keys(vinMap);
-
-  /* Step 1 — S3 ALL at once */
-  for (const k of vinKeys){
-    results[k].s3Status='running';updateRow(k);
-    const v=vinMap[k];
-    for (const fi of v.files){
-      for(let a=1;a<=3;a++){
-        try{
-          const url=await uploadFile(fi);
-          // Only add if not already in list
-          if(!results[k].s3Urls.includes(url)){
-            results[k].s3Urls.push(url);tUploaded++;
-          }
-          break;
-        }catch(err){
-          if(a===3){tErrors++;log('err',`[${v.vin}] ${fi.file.name}: ${err}`);}
-          else await new Promise(r=>setTimeout(r,500*a));
-        }
-      }
-      updateRow(k);updateStats();
-    }
-    results[k].s3Status=results[k].s3Urls.length===0?'error':'ok';
-    if(results[k].s3Urls.length<v.files.length) results[k].errorMsg=`${v.files.length-results[k].s3Urls.length} failed`;
-    updateRow(k);updateStats();
-    log('ok',`[${v.vin}] S3: ${results[k].s3Urls.length}/${v.files.length}`);
-  }
-
-  /* Step 2 — Spyne: one enterprise at a time */
-  setStatus('running','Submitting to Spyne…');
-
-  // Group VINs by enterprise
-  const entGroups = {};
-  vinKeys.forEach(k => {
-    const ent = vinMap[k].ent;
-    if (!entGroups[ent]) entGroups[ent] = [];
-    entGroups[ent].push(k);
+function buildMigrationPreview(rows) {
+  var tb = document.getElementById('mig-preview-tbody');
+  tb.innerHTML = '';
+  rows.forEach(function(r, i) {
+    tb.insertAdjacentHTML('beforeend',
+      '<tr>' +
+      '<td style="color:var(--tx3)">' + (i+1) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.old_enterprise_id) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.old_teamid) + '</td>' +
+      '<td class="td-mono" style="color:var(--ac)">' + escHtml(r.vin_name) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.new_enterprise_id) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.new_teamid) + '</td>' +
+      '<td id="mig-img-count-' + i + '" style="color:var(--tx3)">—</td>' +
+      '<td id="mig-row-status-' + i + '"><span class="badge badge-pend">Pending</span></td>' +
+      '</tr>');
   });
 
-  for (const ent of Object.keys(entGroups)) {
-    const entVinKeys = entGroups[ent];
-    log('blue', `Processing enterprise: ${ent} (${entVinKeys.length} VINs)`);
+  var ents = new Set(rows.map(function(r) { return r.old_enterprise_id; }));
+  var destEnts = new Set(rows.map(function(r) { return r.new_enterprise_id; }));
+  var vins = new Set(rows.map(function(r) { return r.vin_name; }));
 
-    // Get correct token for this enterprise via popup
-    const firstTeam = vinMap[entVinKeys[0]].team;
-    const spyneUrl  = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
-    const entToken  = await getEnterpriseToken(spyneUrl, ent);
+  document.getElementById('mig-stat-total').textContent = rows.length;
+  document.getElementById('mig-stat-ent').textContent = ents.size;
+  document.getElementById('mig-stat-dest').textContent = destEnts.size;
+  document.getElementById('mig-stat-vins').textContent = vins.size;
+  document.getElementById('mig-step2-card').style.display = '';
+}
 
-    if (!entToken) {
-      log('err', `[${ent}] Could not get token — skipping`);
-      entVinKeys.forEach(k => {
-        results[k].spyneStatus='error';
-        results[k].errorMsg='No enterprise token';
-        updateRow(k);
+// ═══════════════════════════════════════════════════════════════
+// MIGRATION — Step 3: Fetch from Metabase
+// ═══════════════════════════════════════════════════════════════
+// Metabase public question UUID
+var METABASE_UUID = '507971b0-75c0-4987-94c6-472900841b8c';
+var METABASE_BASE = 'https://metabase.spyne.ai/api/public/card/' + METABASE_UUID + '/query/json';
+
+async function startFetchImages() {
+  setMigStep(3);
+  document.getElementById('mig-step3-card').style.display = '';
+  migState.imageData = [];
+
+  var rows = migState.rows;
+  var logId = 'mig-fetch-log';
+  document.getElementById(logId).innerHTML = '';
+  addLog('Fetching images for ' + rows.length + ' rows from Metabase…', 'sep', logId);
+
+  // Group by old_enterprise + old_team + vin_name to deduplicate queries
+  var queryMap = {};
+  rows.forEach(function(r, i) {
+    var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
+    if (!queryMap[qk]) queryMap[qk] = { row: r, rowIdx: i, images: null };
+  });
+
+  var qKeys = Object.keys(queryMap);
+  var done = 0;
+
+  for (var qi = 0; qi < qKeys.length; qi++) {
+    var qk2 = qKeys[qi];
+    var qEntry = queryMap[qk2];
+    var r = qEntry.row;
+    var i = qEntry.rowIdx;
+
+    try {
+      // Build Metabase query URL with parameters
+      var params = new URLSearchParams({
+        parameters: JSON.stringify([
+          { type: 'category', target: ['variable', ['template-tag', 'enterprise_id']], value: r.old_enterprise_id },
+          { type: 'category', target: ['variable', ['template-tag', 'team_id']], value: r.old_teamid },
+          { type: 'category', target: ['variable', ['template-tag', 'sku_name']], value: r.vin_name }
+        ])
       });
-      continue;
-    }
+      var url = METABASE_BASE + '?' + params.toString();
 
-    // Generate tokens and fetch bg_ids for all teams in this enterprise
-    const teamKeys = [...new Set(entVinKeys.map(k => `${vinMap[k].ent}/${vinMap[k].team}`))];
-    for (const ck of teamKeys) {
-      await generateTokenViaLambda(ck, entToken.tok, entToken.uid);
-    }
-    // Fetch bg_ids using enterprise login token
-    for (const ck of teamKeys) {
-      await fetchBgId(ck, loginToken); // always use current login token for bg_id
-    }
+      addLog('Querying: ' + r.vin_name + ' (' + r.old_enterprise_id + ')', 'info', logId);
 
-    // Final check — validate bg_ids for this enterprise
-    const missingBg = teamKeys.filter(ck => !comboMap[ck]?.bgId);
-    if (missingBg.length) {
-      missingBg.forEach(ck => {
-        const el = document.getElementById('bg-'+ck.replace(/[/]/g,'_'));
-        if(el) el.style.borderColor = 'var(--red)';
+      var resp = await fetch(url);
+      if (!resp.ok) throw new Error('Metabase HTTP ' + resp.status);
+
+      var data = await resp.json();
+      // data is array of rows with: enterprise_id, team_id, sku_name, image_category, image_url
+      var images = (Array.isArray(data) ? data : []).filter(function(row) {
+        return row.image_url && row.image_url.startsWith('http');
+      }).map(function(row) {
+        return { url: row.image_url, category: row.image_category || 'Exterior' };
       });
-      log('err', `[${ent}] Missing bg_id for: ${missingBg.join(', ')} — skipping`);
-      entVinKeys.forEach(k => { results[k].spyneStatus='error'; results[k].errorMsg='Missing bg_id'; updateRow(k); });
-      tErrors += entVinKeys.length; updateStats();
-      continue;
-    }
 
-    // Submit all VINs for this enterprise
-    for (const k of entVinKeys) {
-      if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
-      results[k].spyneStatus='running';updateRow(k);
-      const v=vinMap[k],ck=`${v.ent}/${v.team}`;
-      try{
-        const resp=await callSpyne(v,results[k].s3Urls,comboMap[ck]?.bgId,comboMap[ck]?.token);
-        results[k].spyneStatus='ok';
-        results[k].dealerVinID=resp?.data?.dealerVinID||'';
-        tSpyne++;
-        log('ok',`[${v.vin}] Spyne accepted · ${results[k].dealerVinID}`);
-      }catch(err){
-        results[k].spyneStatus='error';
-        results[k].errorMsg=String(err).slice(0,80);
-        tErrors++;
-        log('err',`[${v.vin}] Spyne: ${err}`);
+      queryMap[qk2].images = images;
+
+      // Update preview row
+      var countCell = document.getElementById('mig-img-count-' + i);
+      var statusCell = document.getElementById('mig-row-status-' + i);
+      if (countCell) countCell.textContent = images.length;
+      if (statusCell) {
+        if (images.length > 0) {
+          statusCell.innerHTML = '<span class="badge badge-ok">✓ ' + images.length + ' imgs</span>';
+        } else {
+          statusCell.innerHTML = '<span class="badge badge-warn">No images</span>';
+        }
       }
-      updateRow(k);updateStats();
+
+      addLog('  → ' + r.vin_name + ': ' + images.length + ' images found', images.length > 0 ? 'ok' : 'warn', logId);
+
+    } catch(e) {
+      addLog('  ✗ ' + r.vin_name + ': ' + e.message, 'err', logId);
+      queryMap[qk2].images = [];
+      var sc = document.getElementById('mig-row-status-' + i);
+      if (sc) sc.innerHTML = '<span class="badge badge-err">Error</span>';
     }
-    log('ok', `Enterprise ${ent} done ✅`);
+
+    done++;
+    setPb('mig-fetch-bar', Math.round(done / qKeys.length * 100));
+    setPct('mig-fetch-pct', Math.round(done / qKeys.length * 100) + '%');
+    document.getElementById('mig-fetch-label').textContent = 'Queried ' + done + ' / ' + qKeys.length;
   }
 
-  document.getElementById('runBtn').disabled=false;
-  document.getElementById('runBtn').innerHTML='▶ Run Pipeline';
-  document.getElementById('exportBtn').style.display='';
-  setStatus('done',`${tSpyne} submitted · ${tErrors} errors`);
-  log('blue',`Done · ${tSpyne} submitted · ${tErrors} errors`);
-}
-
-async function uploadFile(fi){
-  const r1=await fetch(API_BASE+'/get-upload-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s3Key:fi.s3Key,contentType:fi.contentType})});
-  const d1=await r1.json();
-  if(!r1.ok) throw new Error(d1.error||'Failed to get URL');
-  const r2=await fetch(d1.uploadUrl,{method:'PUT',headers:{'Content-Type':fi.contentType},body:fi.file});
-  if(!r2.ok) throw new Error(`S3 HTTP ${r2.status}`);
-  return d1.publicUrl;
-}
-
-async function callSpyne(vinData,imageUrls,bgId,token){
-  // Deduplicate image URLs
-  const uniqueUrls = [...new Set(imageUrls)];
-  const res=await fetch(API_BASE+'/spyne-process',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token})
+  // Build imageData for all rows (reusing cached results)
+  rows.forEach(function(r, i) {
+    var qk3 = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
+    migState.imageData.push({ row: r, rowIdx: i, images: queryMap[qk3] ? (queryMap[qk3].images || []) : [] });
   });
-  const data=await res.json();
-  if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
 
-  // Check for bg_id error even on success response
-  if(data?.data?.validationSummary?.isRequestRejected) {
-    const errMsg = data?.data?.validationSummary?.displayError?.message || 'Validation error';
-    // Highlight bg_id field in red if bg_id error
-    if(errMsg.toLowerCase().includes('background') || errMsg.toLowerCase().includes('config')) {
-      const ck = `${vinData.ent}/${vinData.team}`;
-      const id = ck.replace(/[/]/g,'_');
-      const bgEl = document.getElementById('bg-'+id);
-      if(bgEl) {
-        bgEl.style.borderColor = 'var(--red)';
-        bgEl.title = errMsg;
-      }
-      throw new Error('Wrong BG ID: ' + errMsg);
+  addLog('━━ Fetch complete — ' + migState.imageData.filter(function(d){ return d.images.length > 0; }).length + ' rows with images', 'sep', logId);
+
+  // Render images review table
+  buildImagesReview();
+  document.getElementById('mig-images-review').style.display = '';
+}
+
+function buildImagesReview() {
+  var tb = document.getElementById('mig-images-tbody');
+  tb.innerHTML = '';
+  migState.imageData.forEach(function(d) {
+    var r = d.row;
+    var cats = [...new Set(d.images.map(function(im){ return im.category; }))].join(', ') || '—';
+    tb.insertAdjacentHTML('beforeend',
+      '<tr>' +
+      '<td class="td-mono" style="color:var(--ac)">' + escHtml(r.vin_name) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.old_enterprise_id) + '</td>' +
+      '<td class="td-mono">' + escHtml(r.old_teamid) + '</td>' +
+      '<td><strong>' + d.images.length + '</strong></td>' +
+      '<td style="color:var(--tx2);font-size:11px">' + escHtml(cats) + '</td>' +
+      '<td>' + (d.images.length > 0 ? '<span class="badge badge-ok">Ready</span>' : '<span class="badge badge-warn">No images</span>') + '</td>' +
+      '</tr>');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MIGRATION — Step 4: bulk/process directly with Metabase URLs
+// No download, no presign, no S3 — URLs passed straight through
+// ═══════════════════════════════════════════════════════════════
+async function startMigrationUpload() {
+  var tok = getToken();
+  if (!tok) { showToast('Set Bearer Token in the Bulk Upload tab first'); return; }
+
+  var toUpload = migState.imageData.filter(function(d) { return d.images.length > 0; });
+  if (!toUpload.length) { showToast('No rows with images to upload'); return; }
+
+  setMigStep(4);
+  document.getElementById('mig-step4-card').style.display = '';
+  var logId = 'mig-upload-log';
+  document.getElementById(logId).innerHTML = '';
+
+  var userId = document.getElementById('mig-userId').value.trim();
+  var bgId   = document.getElementById('mig-bgId').value.trim();
+  var catId  = document.getElementById('mig-catId').value.trim();
+  var tplId  = document.getElementById('mig-tplId').value.trim();
+
+  addLog('Starting migration — ' + toUpload.length + ' VINs (URLs passed directly to bulk/process)', 'sep', logId);
+  addLog('━━ Phase 1: bulk/process with Metabase image URLs', 'sep', logId);
+
+  // Group by new_enterprise + new_team — one POST per group
+  var groups = {};
+  toUpload.forEach(function(d) {
+    var gk = d.row.new_enterprise_id + '||' + d.row.new_teamid;
+    if (!groups[gk]) groups[gk] = [];
+    groups[gk].push(d);
+  });
+
+  var gKeys = Object.keys(groups);
+  var done = 0;
+
+  for (var gi = 0; gi < gKeys.length; gi++) {
+    var gk     = gKeys[gi];
+    var gParts = gk.split('||');
+    var newEnt = gParts[0], newTeam = gParts[1];
+    var items  = groups[gk];
+
+    var bulkData = items.map(function(d) {
+      var imgs = d.images;
+      var fc   = imgs.length;
+      return {
+        vehicleData: {
+          vehicleMetadataUpdates: { vinDetails: { vehicleSnap: {
+            make: {value:''}, model: {value:''}, year: {value:null}, trim: {value:''}
+          }}},
+          vin: d.row.vin_name
+        },
+        inputData: {
+          platform: 'CONSOLE',
+          dataType: ['IMAGE'],
+          metaData: {},
+          assets: {
+            images: imgs.map(function(img, idx) {
+              return {
+                id:  '',                  // no presign — id left empty
+                url: img.url,            // Metabase input_image_hres_url directly
+                isVdp: false,
+                metaData: { type: 'image/jpeg', name: d.row.vin_name + '_' + idx + '.jpg', size: 0 },
+                processingData: { bannerApply: false },
+                isNew: true,
+                isDeleted: false
+              };
+            }),
+            video: []
+          }
+        },
+        processingConfigs: {
+          backgroundId: bgId,
+          catalog: { bannerUrl: null, bannerCopy: false, licensePlateUrl: '', frameCount: fc, backgroundId: bgId, category_id: catId, background_type: 'legacy', number_plate_url: '' },
+          spin:    { detectHotspot: false, spinFrameCount: fc, catalogFrameCount: fc, backgroundId: bgId, licensePlateUrl: '' },
+          featureVideo: { templateId: tplId, font: { text: 'Montserrat', key: 'Montserrat' }, colors: { primaryColor: '#FFFFFF' }, musicId: '', voiceId: '', language: '', targetLanguage: '' }
+        },
+        action: 'create'
+      };
+    });
+
+    addLog('Posting group ' + newEnt + ' / ' + newTeam + ' (' + items.length + ' VINs)…', 'info', logId);
+    try {
+      var resp = await fetch('https://api.spyne.ai/inventory/v2/bulk/process', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userData: { enterpriseId: newEnt, teamId: newTeam, userId: userId }, bulkData: bulkData })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      addLog('✓ ' + newEnt + '/' + newTeam + ': ' + items.length + ' VINs queued', 'ok', logId);
+      items.forEach(function(d) {
+        addToResults({ vin: d.row.vin_name, enterprise: newEnt, team: newTeam, images: d.images.length, status: 'pending', note: 'Migrated from ' + d.row.old_enterprise_id });
+      });
+    } catch(e) {
+      addLog('✗ ' + newEnt + '/' + newTeam + ': ' + e.message, 'err', logId);
+      items.forEach(function(d) {
+        addToResults({ vin: d.row.vin_name, enterprise: newEnt, team: newTeam, images: d.images.length, status: 'failed', note: e.message });
+      });
     }
+
+    done++;
+    setPb('mig-pb1', Math.round(done / gKeys.length * 100));
+    setPct('mig-pc1', Math.round(done / gKeys.length * 100) + '%');
   }
-  return data;
+
+  setPb('mig-pb1', 100); setPct('mig-pc1', '100%');
+  setPb('mig-pb2', 100); setPct('mig-pc2', 'skipped');
+  setPb('mig-pb3', 100); setPct('mig-pc3', 'skipped');
+
+  addLog('━━ Migration complete', 'sep', logId);
+  setMigStep(5);
+  renderResultsPage();
+  showToast('Migration complete! Check Results tab.');
 }
 
-function exportCSV(){
-  const rows=[['Enterprise','Team','VIN','BG ID','Images','Uploaded','S3','Spyne','DealerVinID','Error']];
-  Object.keys(vinMap).forEach(k=>{
-    const v=vinMap[k],r=results[k]||{},ck=`${v.ent}/${v.team}`;
-    rows.push([v.ent,v.team,v.vin,comboMap[ck]?.bgId||'',v.files.length,r.s3Urls?.length||0,r.s3Status,r.spyneStatus,r.dealerVinID||'',r.errorMsg||'']);
+// ═══════════════════════════════════════════════════════════════
+// MIGRATION — Helpers
+// ═══════════════════════════════════════════════════════════════
+function setMigStep(step) {
+  migState.step = step;
+  for (var s = 1; s <= 5; s++) {
+    var el = document.getElementById('ms' + s);
+    el.className = 'mstep';
+    if (s < step) el.classList.add('done');
+    else if (s === step) el.classList.add('active');
+  }
+}
+
+function resetMigration() {
+  migState.rows = [];
+  migState.imageData = [];
+  migState.results = [];
+  migState.step = 1;
+  document.getElementById('mig-step2-card').style.display = 'none';
+  document.getElementById('mig-step3-card').style.display = 'none';
+  document.getElementById('mig-step4-card').style.display = 'none';
+  document.getElementById('mig-images-review').style.display = 'none';
+  document.getElementById('mig-file-input').value = '';
+  // reset capsule states
+  var migCap = document.getElementById('mig-cap-csv');
+  if (migCap) migCap.className = 'capsule-half active';
+  var bulkCap = document.getElementById('cap-csv');
+  if (bulkCap) bulkCap.className = 'capsule-half';
+  document.getElementById('cap-csv-loaded').style.display = 'none';
+  setMigStep(1);
+}
+
+function exportMigrationCSV() {
+  var lines = ['vin_name,old_enterprise_id,old_team_id,image_url,image_category'];
+  migState.imageData.forEach(function(d) {
+    d.images.forEach(function(img) {
+      lines.push([d.row.vin_name, d.row.old_enterprise_id, d.row.old_teamid, img.url, img.category].map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(','));
+    });
   });
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='spyne-results.csv';a.click();
+  downloadCSV(lines.join('\n'), 'migration_images.csv');
 }
 
-function resetAll(){
-  vinMap={};comboMap={};results={};
-  tUploaded=0;tSpyne=0;tErrors=0;updateStats();
-  document.getElementById('fi').value='';
-  document.getElementById('combosSection').style.display='none';
-  document.getElementById('combosWrap').innerHTML='';
-  document.getElementById('runBtn').disabled=true;
-  document.getElementById('exportBtn').style.display='none';
-  document.getElementById('emptyState').style.display='block';
-  document.getElementById('vinTable').style.display='none';
-  document.getElementById('vinBody').innerHTML='';
-  document.getElementById('sVins').textContent='0';
-  document.getElementById('tblSub').textContent='Select a folder to populate the queue';
-  setStatus('idle','');clearLog();
+function exportMigrationResults() {
+  var lines = ['vin_name,new_enterprise_id,new_team_id,old_enterprise_id,old_team_id,images,status'];
+  migState.imageData.forEach(function(d) {
+    var r = d.row;
+    lines.push([r.vin_name, r.new_enterprise_id, r.new_teamid, r.old_enterprise_id, r.old_teamid, (d._blobs||d.images||[]).length, 'queued'].map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(','));
+  });
+  downloadCSV(lines.join('\n'), 'migration_results.csv');
 }
 
-function updateStats(){
-  document.getElementById('sUploaded').textContent=tUploaded;
-  document.getElementById('sSpyne').textContent=tSpyne;
-  document.getElementById('sErrors').textContent=tErrors;
+// ═══════════════════════════════════════════════════════════════
+// CSV EXPORT
+// ═══════════════════════════════════════════════════════════════
+function exportCSV(type) {
+  var lines = ['vin,enterprise_id,team_id,images,status,note'];
+  allResults.forEach(function(r) {
+    lines.push([r.vin||'', r.enterprise||'', r.team||'', r.images||0, r.status||'', r.note||''].map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(','));
+  });
+  downloadCSV(lines.join('\n'), 'spyne_upload_results.csv');
 }
-function setStatus(t,x){const p=document.getElementById('gStatus');p.className='pill '+t;p.textContent=x||(t.charAt(0).toUpperCase()+t.slice(1));}
-function log(type,msg){
-  const body=document.getElementById('logBody');
-  const now=new Date();
-  const t=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const e=document.createElement('div');e.className='le';
-  e.innerHTML=`<span class="lt">${t}</span><span class="lm ${type}">${esc(msg)}</span>`;
-  body.appendChild(e);body.scrollTop=body.scrollHeight;
+function downloadCSV(content, filename) {
+  var blob = new Blob([content], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
 }
-function clearLog(){document.getElementById('logBody').innerHTML='';}
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function pad(n){return String(n).padStart(2,'0');}
 
-window.addEventListener('load', () => {
-  // Check if opened via bookmark (token in URL)
-  const params = new URLSearchParams(window.location.search);
-  const urlToken = params.get('loginToken') || params.get('token');
-  const urlUid   = params.get('uid') || '';
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg) {
+  var t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 3000);
+}
 
-  if (urlToken) {
-    loginToken  = urlToken;
-    loginUserId = urlUid || '';
-    document.getElementById('loginTokenInput').value = urlToken;
-    document.getElementById('loginHint').textContent = '✓ Connected via Spyne! userId: ' + loginUserId;
-    document.getElementById('loginHint').className = 'hint ok';
-    document.getElementById('spyneDot').style.color = '#3ecf8e';
-    window.history.replaceState({}, '', window.location.pathname);
-    log('ok', 'Connected via bookmark · userId: ' + loginUserId);
-  }
-});
+// Init
+renderResultsPage();
 </script>
 </body>
 </html>

@@ -518,14 +518,14 @@ function migExportCSV() {
     lines.push([r.vin_name, r.old_enterprise_id, r.old_teamid, r.new_enterprise_id, r.new_teamid, d.dealerVinId||'', d.images.length, status]
       .map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
   });
-  var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'migration-results.csv';
+  a.setAttribute('href', dataUri);
+  a.setAttribute('download', 'migration-results.csv');
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  setTimeout(function(){ document.body.removeChild(a); }, 200);
 }
 
 function resetMig() {
@@ -553,14 +553,15 @@ function downloadSampleCSV() {
   var csv = rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
   }).join('\n');
-  var blob = new Blob([csv], { type: 'text/csv' });
+  // Use data URI instead of Blob URL — works in all browsers including sandboxed pages
+  var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'migration_sample.csv';
+  a.setAttribute('href', dataUri);
+  a.setAttribute('download', 'migration_sample.csv');
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  setTimeout(function(){ document.body.removeChild(a); }, 200);
 }
 
 </script>
@@ -1716,14 +1717,14 @@ function migExportCSV() {
     lines.push([r.vin_name, r.old_enterprise_id, r.old_teamid, r.new_enterprise_id, r.new_teamid, d.dealerVinId||'', d.images.length, status]
       .map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
   });
-  var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  var dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'));
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'migration-results.csv';
+  a.setAttribute('href', dataUri);
+  a.setAttribute('download', 'migration-results.csv');
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  setTimeout(function(){ document.body.removeChild(a); }, 200);
 }
 
 function resetMig() {

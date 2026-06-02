@@ -305,6 +305,7 @@
   </div>
 </div>
 
+
   <!-- ═══ MIGRATION SECTION ═══ -->
   <div id="migSection" style="display:none;margin-top:28px;">
     <div class="tbl-head">
@@ -1302,7 +1303,6 @@ async function confirmAndRun() {
 
   var gKeys = Object.keys(groups);
   var done  = 0;
-  setMigProg(0, 'Posting to bulk/process…');
 
   migLog('blue', 'Starting — ' + toRun.length + ' VINs across ' + gKeys.length + ' groups');
 
@@ -1314,34 +1314,39 @@ async function confirmAndRun() {
 
     var bulkData = items.map(function(d) {
       var fc = d.images.length;
+      var images = d.images.map(function(img, idx) {
+        return {
+          id: '', url: img.url, isVdp: false,
+          metaData: { type:'image/jpeg', name: d.row.vin_name+'_'+idx+'.jpg', size:0 },
+          processingData: { bannerApply: false },
+          isNew: true, isDeleted: false
+        };
+      });
       return {
-        vehicleData: {
-          vehicleMetadataUpdates: { vinDetails: { vehicleSnap: {
-            make:{value:''}, model:{value:''}, year:{value:null}, trim:{value:''}
-          }}},
-          vin: d.row.vin_name
+        data: {
+          vehicleData: {
+            vehicleMetadataUpdates: { vinDetails: { vehicleSnap: {
+              make:{value:''}, model:{value:''}, year:{value:null}, trim:{value:''}
+            }}},
+            vin: d.row.vin_name
+          },
+          inputData: {
+            platform: 'CONSOLE', dataType: ['IMAGE'], metaData: {},
+            assets: { images: images, video: [] }
+          },
+          processingConfigs: {
+            backgroundId: bgId,
+            catalog: { bannerUrl:null, bannerCopy:false, licensePlateUrl:'', frameCount:fc, backgroundId:bgId, category_id:catId, background_type:'legacy', number_plate_url:'' },
+            spin:    { detectHotspot:false, spinFrameCount:fc, catalogFrameCount:fc, backgroundId:bgId, licensePlateUrl:'' },
+            featureVideo: { templateId:'', font:{text:'Montserrat',key:'Montserrat'}, colors:{primaryColor:'#FFFFFF'}, musicId:'', voiceId:'', language:'', targetLanguage:'' }
+          },
+          action: 'create'
         },
-        inputData: {
-          platform: 'CONSOLE', dataType: ['IMAGE'], metaData: {},
-          assets: {
-            images: d.images.map(function(img, idx) {
-              return {
-                id: '', url: img.url, isVdp: false,
-                metaData: { type:'image/jpeg', name: d.row.vin_name+'_'+idx+'.jpg', size:0 },
-                processingData: { bannerApply: false },
-                isNew: true, isDeleted: false
-              };
-            }),
-            video: []
-          }
-        },
-        processingConfigs: {
-          backgroundId: bgId,
-          catalog: { bannerUrl:null, bannerCopy:false, licensePlateUrl:'', frameCount:fc, backgroundId:bgId, category_id:catId, background_type:'legacy', number_plate_url:'' },
-          spin:    { detectHotspot:false, spinFrameCount:fc, catalogFrameCount:fc, backgroundId:bgId, licensePlateUrl:'' },
-          featureVideo: { templateId:'', font:{text:'Montserrat',key:'Montserrat'}, colors:{primaryColor:'#FFFFFF'}, musicId:'', voiceId:'', language:'', targetLanguage:'' }
-        },
-        action: 'create'
+        outputData: {
+          outputType: ['CATALOG'],
+          outputFormat: 'jpeg',
+          outputQuality: 'high'
+        }
       };
     });
 
@@ -1353,21 +1358,44 @@ async function confirmAndRun() {
         body: JSON.stringify({ userData: { enterpriseId:newEnt, teamId:newTeam, userId:userId }, bulkData: bulkData })
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      migLog('ok', '✓ ' + newEnt+'/'+newTeam + ': ' + items.length + ' VINs queued');
-      items.forEach(function(d) {
-        document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
-      });
-      // Delete from old enterprise if user opted in
-      if (shouldDelete) {
-        for (var di = 0; di < items.length; di++) {
-          var dItem = items[di];
-          var dealerVinId = dItem.dealerVinId || '';
+
+      // Parse response to check per-VIN success
+      var respData = await resp.json();
+      var vinResults = {};
+      // bulk/process returns per-VIN status in response
+      if (respData && respData.data && Array.isArray(respData.data)) {
+        respData.data.forEach(function(item) {
+          var vin = item.vin || item.vinName || '';
+          vinResults[vin] = item.status || item.success || 'queued';
+        });
+      }
+
+      migLog('ok', '✓ ' + newEnt+'/'+newTeam + ': ' + items.length + ' VINs submitted');
+
+      // Process each VIN — mark status and delete only if upload succeeded
+      for (var vi = 0; vi < items.length; vi++) {
+        var vItem = items[vi];
+        var vinName = vItem.row.vin_name;
+        var vinStatus = vinResults[vinName] || 'queued';
+        var uploadFailed = vinStatus === 'failed' || vinStatus === 'error';
+
+        if (uploadFailed) {
+          migLog('warn', '⚠ ' + vinName + ': upload failed — skipping delete');
+          document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge error">✗ Upload Failed</span>';
+          continue;
+        }
+
+        // Upload succeeded
+        document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
+
+        // Delete from old enterprise only if upload succeeded and user opted in
+        if (shouldDelete) {
+          var dealerVinId = vItem.dealerVinId || '';
           if (!dealerVinId) {
-            migLog('warn', '⚠ ' + dItem.row.vin_name + ': no dealerVinId — skipping delete');
+            migLog('warn', '⚠ ' + vinName + ': no dealerVinId — skipping delete');
             continue;
           }
           try {
-            // Route DELETE through Lambda to avoid CORS
             var delResp = await fetch(METABASE_API + '/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1380,13 +1408,14 @@ async function confirmAndRun() {
             });
             var delData = await delResp.json();
             if (!delResp.ok || delData.error) throw new Error(delData.error || delData.message || 'HTTP ' + delResp.status);
-            migLog('ok', '🗑 Deleted ' + dItem.row.vin_name + ' (' + dealerVinId.slice(0,8) + '…) from ' + dItem.row.old_enterprise_id);
-            document.getElementById('mig-status-'+dItem.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
+            migLog('ok', '🗑 Deleted ' + vinName + ' (' + dealerVinId.slice(0,8) + '…) from ' + vItem.row.old_enterprise_id);
+            document.getElementById('mig-status-'+vItem.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
           } catch(de) {
-            migLog('warn', '⚠ Delete failed ' + dItem.row.vin_name + ': ' + de.message);
+            migLog('warn', '⚠ Delete failed ' + vinName + ': ' + de.message);
           }
         }
       }
+
     } catch(e) {
       migLog('err', '✗ ' + newEnt + ': ' + e.message);
       items.forEach(function(d) {

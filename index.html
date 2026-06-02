@@ -479,6 +479,24 @@ function resetMig() {
   setMigStep(1);
 }
 
+function downloadSampleCSV() {
+  var rows = [
+    ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68'],
+  ];
+  var csv = rows.map(function(r) {
+    return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
+  }).join('\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'migration_sample.csv';
+  a.click();
+}
+
 </script>
 </head>
 <body>
@@ -524,11 +542,18 @@ function resetMig() {
         <span id="cap-csv-txt">Upload CSV</span>
       </label>
     </div>
-    <div id="cap-folder-info" style="display:none;margin-top:8px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
+    <!-- Sample CSV download hint -->
+    <div style="margin-top:7px;display:flex;align-items:center;justify-content:flex-end;">
+      <button onclick="downloadSampleCSV()" title="Download sample CSV template" style="display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 4px;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+        Sample CSV
+      </button>
+    </div>
+    <div id="cap-folder-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
       <span id="cap-folder-detail"></span>
       <button class="btn sm" onclick="resetAll()" style="font-size:10px;padding:2px 8px;">✕</button>
     </div>
-    <div id="cap-csv-info" style="display:none;margin-top:8px;font-size:11px;color:var(--green);">
+    <div id="cap-csv-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);">
       <span id="cap-csv-detail"></span>
     </div>
   </div>

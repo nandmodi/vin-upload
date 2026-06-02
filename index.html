@@ -1300,38 +1300,8 @@ async function confirmAndRun() {
 
     migLog('info', 'Uploading ' + vinName + ' → ' + d.row.new_enterprise_id);
 
-    // Get token for new enterprise (use loginToken — Lambda handles it)
-    // Use same spyne-process Lambda as original upload flow
-    // bgId fetched via get-bg-id Lambda for new enterprise
-    var bgId = '';
-    try {
-      var bgResp = await fetch(API_BASE + '/get-bg-id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          enterpriseId: d.row.new_enterprise_id,
-          teamId:       newTeam,
-          loginToken:   loginToken
-        })
-      });
-      var bgData = await bgResp.json();
-      // Same logic as original fetchBgId function
-      var defaultBg = bgData.defaultBackground;
-      var teamBgs   = bgData.teamBgs || [];
-      if (defaultBg) {
-        bgId = String(defaultBg);
-        migLog('ok', '  bg_id (default): ' + bgId);
-      } else if (teamBgs.length >= 1) {
-        bgId = String(teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || teamBgs[0]);
-        migLog('ok', '  bg_id (team[0]): ' + bgId);
-      } else {
-        migLog('warn', '  No bg_id found for ' + d.row.new_enterprise_id + '/' + newTeam);
-      }
-    } catch(be) {
-      migLog('warn', '  bg_id fetch failed: ' + be.message);
-    }
-
-    // Get enterprise token via generate-token Lambda
+    // Step A: Get enterprise token for NEW enterprise FIRST
+    // (same as original runPipeline → getEnterpriseToken → generateTokenViaLambda)
     var entToken = loginToken;
     try {
       var tokResp = await fetch(API_BASE + '/generate-token', {
@@ -1345,9 +1315,44 @@ async function confirmAndRun() {
         })
       });
       var tokData = await tokResp.json();
-      if (tokData.token) { entToken = tokData.token; migLog('ok', '  token ready for ' + d.row.new_enterprise_id); }
+      if (tokData.token) {
+        entToken = tokData.token;
+        migLog('ok', '  ✓ Token ready for ' + d.row.new_enterprise_id);
+      } else {
+        migLog('warn', '  Token not returned — using loginToken');
+      }
     } catch(te) {
-      migLog('warn', '  Token fetch failed, using loginToken');
+      migLog('warn', '  Token fetch failed: ' + te.message);
+    }
+
+    // Step B: Get bg_id for NEW enterprise using the NEW enterprise token
+    // (same as original fetchBgId — uses enterprise token, not loginToken)
+    var bgId = '';
+    try {
+      var bgResp = await fetch(API_BASE + '/get-bg-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          loginToken:   entToken   // ← use NEW enterprise token, not loginToken
+        })
+      });
+      var bgData = await bgResp.json();
+      // Exact same logic as fetchBgId in original flow
+      var defaultBg = bgData.defaultBackground;
+      var teamBgs   = bgData.teamBgs || [];
+      if (defaultBg) {
+        bgId = String(defaultBg);
+        migLog('ok', '  ✓ bg_id (default): ' + bgId);
+      } else if (teamBgs.length >= 1) {
+        bgId = String(teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || teamBgs[0]);
+        migLog('ok', '  ✓ bg_id (team[0]): ' + bgId);
+      } else {
+        migLog('warn', '  No bg_id found for ' + d.row.new_enterprise_id + '/' + newTeam);
+      }
+    } catch(be) {
+      migLog('warn', '  bg_id fetch failed: ' + be.message);
     }
 
     // Call same spyne-process Lambda as original upload

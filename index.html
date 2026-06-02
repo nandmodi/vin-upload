@@ -596,6 +596,12 @@ function triggerCSVPick() {
   if (el) { el.value = ''; el.click(); }
 }
 function onFolderChange(input) {
+  // Clear CSV if folder selected
+  resetMig();
+  var capC = document.getElementById('cap-csv');
+  if (capC) { capC.style.background = ''; capC.style.color = ''; }
+  var capCInfo = document.getElementById('cap-csv-info');
+  if (capCInfo) capCInfo.style.display = 'none';
   parseFolder(Array.from(input.files));
 }
 // Keep old event listener for compatibility
@@ -1089,6 +1095,23 @@ function handleMigCSV(file) {
     migData = [];
     renderMigTable(rows);
 
+    // Clear folder upload if CSV selected — mutually exclusive
+    if (Object.keys(vinMap).length) {
+      vinMap = {}; comboMap = {}; results = {};
+      document.getElementById('folder-preview') && (document.getElementById('folder-preview').style.display = 'none');
+      document.getElementById('combosSection').style.display = 'none';
+      document.getElementById('combosWrap').innerHTML = '';
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('vinTable').style.display = 'none';
+      document.getElementById('vinBody').innerHTML = '';
+      document.getElementById('sVins').textContent = '0';
+      // Reset folder capsule
+      var capF = document.getElementById('cap-folder');
+      if (capF) { capF.style.background = ''; capF.style.color = ''; }
+      var capFInfo = document.getElementById('cap-folder-info');
+      if (capFInfo) capFInfo.style.display = 'none';
+    }
+
     // Show migration section
     document.getElementById('migSection').style.display = '';
     document.getElementById('migSub').textContent = rows.length + ' rows loaded — click Run Pipeline to start';
@@ -1285,83 +1308,89 @@ async function confirmAndRun() {
     return;
   }
 
-  // ── Phase 2: Upload via same spyne-process Lambda as folder upload ──
-  migLog('blue', '━━ Phase 2: Uploading to new accounts');
-  setMigProg(40, '⬆ Phase 2/3 — Uploading to new accounts…');
+  // ── Phase 2: Setup combos for new enterprises (same as folder upload) ──
+  migLog('blue', '━━ Phase 2: Setting up enterprise tokens & bg_ids');
+  setMigProg(40, '⬆ Phase 2/3 — Getting tokens & bg_ids…');
+
+  // Build comboMap entries for new enterprise+team combos
+  // This reuses the EXACT same combo system as folder upload
+  toRun.forEach(function(d) {
+    var ck = d.row.new_enterprise_id + '/' + d.row.new_teamid;
+    if (!comboMap[ck]) {
+      comboMap[ck] = { ent: d.row.new_enterprise_id, team: d.row.new_teamid, bgId: '', token: null };
+    }
+  });
+
+  // Show combos section so user sees bg_id fetching — same as folder upload
+  var newCombos = toRun.reduce(function(acc, d) {
+    var ck = d.row.new_enterprise_id + '/' + d.row.new_teamid;
+    if (acc.indexOf(ck) === -1) acc.push(ck);
+    return acc;
+  }, []);
+
+  renderCombos(newCombos);
+  document.getElementById('combosSection').style.display = '';
+
+  // Get tokens enterprise by enterprise (same as runPipeline)
+  var entGroups = {};
+  newCombos.forEach(function(ck) {
+    var ent = comboMap[ck].ent;
+    if (!entGroups[ent]) entGroups[ent] = [];
+    entGroups[ent].push(ck);
+  });
+
+  for (var ent in entGroups) {
+    var combos   = entGroups[ent];
+    var firstTeam = comboMap[combos[0]].team;
+    migLog('blue', 'Getting token for enterprise: ' + ent);
+    var spyneUrl = 'https://console.spyne.ai/developer-hub?enterprise_id=' 
+                 + encodeURIComponent(ent) + '&team_id=' + encodeURIComponent(firstTeam);
+    var entResult = await getEnterpriseToken(spyneUrl, ent);
+    if (!entResult) {
+      migLog('err', 'Could not get token for ' + ent);
+      continue;
+    }
+    for (var ci = 0; ci < combos.length; ci++) {
+      await generateTokenViaLambda(combos[ci], entResult.tok, entResult.uid);
+    }
+    // Fetch bg_id using loginToken (same as original)
+    for (var ci = 0; ci < combos.length; ci++) {
+      await fetchBgId(combos[ci], loginToken);
+    }
+  }
+
+  // Validate all combos have bg_id
+  var missingBg = newCombos.filter(function(ck) { return !comboMap[ck].bgId; });
+  if (missingBg.length) {
+    migLog('err', 'Missing bg_id for: ' + missingBg.join(', '));
+    // Highlight in red same as original
+    missingBg.forEach(function(ck) {
+      var el = document.getElementById('bg-' + ck.replace(/[/]/g,'_'));
+      if (el) el.style.borderColor = 'var(--red)';
+    });
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
+    return;
+  }
+
+  // ── Phase 3: Upload each VIN ──
+  migLog('blue', '━━ Phase 3: Uploading VINs to new accounts');
+  setMigProg(60, '⬆ Phase 3/3 — Uploading VINs…');
 
   var done  = 0;
   var total = toRun.length;
 
   for (var vi = 0; vi < toRun.length; vi++) {
-    var d       = toRun[vi];
-    var vinName = d.row.vin_name;
-    var newTeam = d.row.new_teamid;
+    var d         = toRun[vi];
+    var vinName   = d.row.vin_name;
+    var newTeam   = d.row.new_teamid;
+    var ck        = d.row.new_enterprise_id + '/' + newTeam;
     var imageUrls = d.images.map(function(img){ return img.url; });
+    var bgId      = comboMap[ck].bgId;
+    var entToken  = comboMap[ck].token;
 
-    migLog('info', 'Uploading ' + vinName + ' → ' + d.row.new_enterprise_id);
+    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ')');
 
-    // Step A: Get enterprise token for NEW enterprise
-    // Uses same popup → generateTokenViaLambda flow as original runPipeline
-    var entToken = loginToken;
-    migLog('info', '  Getting token for enterprise: ' + d.row.new_enterprise_id);
-    try {
-      var spyneUrl = 'https://console.spyne.ai/developer-hub?enterprise_id=' 
-                   + encodeURIComponent(d.row.new_enterprise_id) 
-                   + '&team_id=' + encodeURIComponent(newTeam);
-      var entResult = await getEnterpriseToken(spyneUrl, d.row.new_enterprise_id);
-      if (entResult && entResult.tok) {
-        // Now generate proper scoped token via Lambda
-        var tokResp = await fetch(API_BASE + '/generate-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            loginToken:   entResult.tok,
-            enterpriseId: d.row.new_enterprise_id,
-            teamId:       newTeam,
-            userId:       entResult.uid || loginUserId
-          })
-        });
-        var tokData = await tokResp.json();
-        if (tokData.token) {
-          entToken = tokData.token;
-          migLog('ok', '  ✓ Token ready for ' + d.row.new_enterprise_id);
-        }
-      }
-    } catch(te) {
-      migLog('warn', '  Token fetch failed: ' + te.message + ' — using loginToken');
-    }
-
-    // Step B: Get bg_id for NEW enterprise using enterprise login token
-    // Same as original: fetchBgId always uses loginToken (current session token)
-    var bgId = '';
-    try {
-      var bgResp = await fetch(API_BASE + '/get-bg-id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          enterpriseId: d.row.new_enterprise_id,
-          teamId:       newTeam,
-          loginToken:   loginToken
-        })
-      });
-      var bgData = await bgResp.json();
-      migLog('info', '  get-bg-id response: ' + JSON.stringify(bgData).slice(0, 200));
-      var defaultBg = bgData.defaultBackground;
-      var teamBgs   = bgData.teamBgs || [];
-      if (defaultBg) {
-        bgId = String(defaultBg);
-        migLog('ok', '  ✓ bg_id: ' + bgId);
-      } else if (teamBgs.length >= 1) {
-        bgId = String(teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || teamBgs[0]);
-        migLog('ok', '  ✓ bg_id (team): ' + bgId);
-      } else {
-        migLog('warn', '  No bg_id found — response: ' + JSON.stringify(bgData).slice(0, 300));
-      }
-    } catch(be) {
-      migLog('warn', '  bg_id fetch failed: ' + be.message);
-    }
-
-    // Call same spyne-process Lambda as original upload
     try {
       var spyneResp = await fetch(API_BASE + '/spyne-process', {
         method: 'POST',
@@ -1413,7 +1442,7 @@ async function confirmAndRun() {
     }
 
     done++;
-    setMigProg(40 + Math.round(done/total*55), '⬆ ' + done + ' / ' + total + ' VINs');
+    setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
   }
 
   migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));

@@ -612,18 +612,18 @@ function downloadSampleCSV() {
     <div class="s-title">Select Source</div>
     <div style="display:flex;border:1px solid var(--border2);border-radius:99px;overflow:hidden;height:44px;background:var(--bg);">
       <!-- Left: Upload Folder -->
-      <label id="cap-folder" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
-        <input type="file" id="fi" webkitdirectory multiple style="display:none" onchange="onFolderChange(this)">
+      <div id="cap-folder" onclick="document.getElementById('fi').click()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
         <span id="cap-folder-txt">Upload Folder</span>
-      </label>
+      </div>
+      <input type="file" id="fi" webkitdirectory multiple style="display:none" onchange="onFolderChange(this)">
       <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
       <!-- Right: Upload CSV -->
-      <label id="cap-csv" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv / .xlsx with migration columns">
-        <input type="file" id="csvMigInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleMigCSV(this.files[0])">
+      <div id="cap-csv" onclick="document.getElementById('csvMigInput').click()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv / .xlsx with migration columns">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         <span id="cap-csv-txt">Upload CSV</span>
-      </label>
+      </div>
+      <input type="file" id="csvMigInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleMigCSV(this.files[0])">
     </div>
     <!-- Sample CSV download hint -->
     <div style="margin-top:7px;display:flex;align-items:center;justify-content:flex-end;">

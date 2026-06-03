@@ -509,7 +509,9 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
   } catch(err) {
     combo.token = null;
     if (stEl) { stEl.textContent='✗ Failed'; stEl.className='cs err'; }
-    log('err', `[${combo.ent}/${combo.team}] ${err.message}`);
+    log('err', `[${combo.ent}/${combo.team}] Token failed: ${err.message}`);
+    // Also log to migration log if visible
+    if (typeof migLog === 'function') migLog('err', '✗ Token failed for ' + combo.ent + '/' + combo.team + ': ' + err.message);
   }
 }
 
@@ -1374,28 +1376,46 @@ async function confirmAndRun() {
         var bgD = await bgR.json();
         migLog('info', '  bg_id raw: ' + JSON.stringify(bgD).slice(0, 150));
 
+        // EXACT same logic as fetchBgId in folder upload
         var defaultBg = bgD.defaultBackground;
         var teamBgs   = bgD.teamBgs || [];
+        var bgEl2 = document.getElementById('bg-' + ck2.replace(/\//g,'_'));
+        var stBg2 = document.getElementById('stbg-' + ck2.replace(/\//g,'_'));
 
-        var pickedBg = '';
         if (defaultBg) {
-          pickedBg = String(defaultBg);
-        } else if (teamBgs.length >= 1) {
-          pickedBg = String(teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || teamBgs[0]);
-        }
+          // 1. Use default_background directly
+          combo2.bgId = String(defaultBg);
+          if (bgEl2) { bgEl2.value = String(defaultBg); bgEl2.style.borderColor = 'var(--green)'; }
+          if (stBg2) { stBg2.textContent = '✓ Auto bg_id'; stBg2.style.color = 'var(--green)'; }
+          migLog('ok', '  ✓ bg_id (default): ' + defaultBg);
 
-        if (pickedBg) {
-          combo2.bgId = pickedBg;
-          // Also update the UI input
-          var bgEl2 = document.getElementById('bg-' + ck2.replace(/\//g,'_'));
-          var stBg2 = document.getElementById('stbg-' + ck2.replace(/\//g,'_'));
-          if (bgEl2) { bgEl2.value = pickedBg; bgEl2.style.borderColor = 'var(--green)'; }
-          if (stBg2) { stBg2.textContent = '✓ Auto bg_id: ' + pickedBg; stBg2.style.color = 'var(--green)'; }
-          migLog('ok', '  ✓ bg_id: ' + pickedBg);
+        } else if (teamBgs.length === 1) {
+          // 2. Only one bg — use it
+          var bgId2 = teamBgs[0].background_id || teamBgs[0]._id || teamBgs[0].id || String(teamBgs[0]);
+          combo2.bgId = String(bgId2);
+          if (bgEl2) { bgEl2.value = String(bgId2); bgEl2.style.borderColor = 'var(--green)'; }
+          if (stBg2) { stBg2.textContent = '✓ Auto bg_id'; stBg2.style.color = 'var(--green)'; }
+          migLog('ok', '  ✓ bg_id (team): ' + bgId2);
+
+        } else if (teamBgs.length > 1) {
+          // 3. Multiple bgs — show dropdown (same as folder upload)
+          var sel2 = document.createElement('select');
+          sel2.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;';
+          sel2.innerHTML = '<option value="">Select bg_id…</option>' +
+            teamBgs.map(function(bg) {
+              var bgId3 = bg.background_id || bg._id || bg.id || String(bg);
+              var bgName = bg.name || bg.title || bgId3;
+              return '<option value="' + bgId3 + '">' + bgName + ' (' + bgId3 + ')</option>';
+            }).join('');
+          sel2.onchange = function() { combo2.bgId = sel2.value; };
+          if (bgEl2) bgEl2.parentNode.replaceChild(sel2, bgEl2);
+          if (stBg2) { stBg2.textContent = teamBgs.length + ' options'; stBg2.style.color = 'var(--blue)'; }
+          migLog('info', '  ' + teamBgs.length + ' bg_ids available — select one in combos box');
+
         } else {
-          migLog('warn', '  No bg_id found for ' + combo2.ent + '/' + combo2.team);
-          var stBg3 = document.getElementById('stbg-' + ck2.replace(/\//g,'_'));
-          if (stBg3) { stBg3.textContent = 'Not found'; stBg3.style.color = 'var(--red)'; }
+          // 4. No bg_id found
+          if (stBg2) { stBg2.textContent = 'Enter manually'; stBg2.style.color = 'var(--hint)'; }
+          migLog('warn', '  No bg_id found for ' + combo2.ent + '/' + combo2.team + ' — enter manually');
         }
       } catch(bgErr) {
         migLog('err', '  bg_id fetch error: ' + bgErr.message);
@@ -1433,7 +1453,16 @@ async function confirmAndRun() {
     var bgId      = comboMap[ck].bgId;
     var entToken  = comboMap[ck].token;
 
-    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ')');
+    // If token generation failed, skip this VIN
+    if (!entToken) {
+      migLog('err', '✗ ' + vinName + ': no enterprise token — skipping (check Activity Log for error)');
+      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ No Token</span>';
+      done++;
+      setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
+      continue;
+    }
+
+    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ', ent: ' + d.row.new_enterprise_id + ')');
 
     try {
       var spyneResp = await fetch(API_BASE + '/spyne-process', {

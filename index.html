@@ -448,10 +448,13 @@ function getEnterpriseToken(spyneUrl, ent, firstTeam) {
       } catch(e) { return null; }
     }
 
-    // Check if already on correct enterprise
+    // Always try fresh localStorage token first — works when running inside console.spyne.ai
     const cur = readLocalToken();
-    if (cur && cur.ent === ent) {
-      log('ok', 'Already on enterprise ' + ent + ' ✅');
+    if (cur) {
+      // localStorage has a valid token — use it regardless of which enterprise
+      // generate-token Lambda works with any valid loginToken
+      log('ok', 'Using localStorage token (ent: ' + cur.ent + ') for ' + ent);
+      enterpriseTokenCache[ent] = cur.tok;
       resolve({ tok: cur.tok, uid: cur.uid });
       return;
     }
@@ -476,6 +479,7 @@ function getEnterpriseToken(spyneUrl, ent, firstTeam) {
         clearInterval(checkInterval);
         try { popup && popup.close(); } catch(e) {}
         log('ok', 'Enterprise ' + ent + ' detected in localStorage ✅');
+        enterpriseTokenCache[ent] = r.tok;
         resolve({ tok: r.tok, uid: r.uid });
         return;
       }
@@ -493,6 +497,7 @@ function getEnterpriseToken(spyneUrl, ent, firstTeam) {
             try { popup.close(); } catch(e) {}
             var pud = JSON.parse(popup.localStorage.getItem('userDetails') || '{}');
             log('ok', 'Enterprise ' + ent + ' confirmed via popup ✅');
+            enterpriseTokenCache[ent] = praw;
             resolve({ tok: praw, uid: pud.userId || pud._id || loginUserId });
             return;
           }
@@ -528,13 +533,21 @@ async function fetchToken(comboKey) {
   await generateTokenViaLambda(comboKey, loginToken, loginUserId);
 }
 
+// Cache enterprise login tokens — key: enterpriseId, value: loginToken
+var enterpriseTokenCache = {};
+
 async function generateTokenViaLambda(comboKey, tok, uid) {
   const combo = comboMap[comboKey];
   const id    = comboKey.replace(/\//g,'_');
   const stEl  = document.getElementById('st-'+id);
   if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
   try {
-    if (!tok) throw new Error('No enterprise token — switch to enterprise ' + combo.ent + ' in console.spyne.ai first');
+    if (!tok) {
+      // Try cached token for this enterprise
+      tok = enterpriseTokenCache[combo.ent] || null;
+      if (tok) log('info', `[${comboKey}] Using cached enterprise token`);
+      else throw new Error('No enterprise token for ' + combo.ent);
+    }
     const cleanTok = tok.replace(/^Bearer\s+/i, '');
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
@@ -549,6 +562,9 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
     const d = await r.json();
     if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
     combo.token = d.token;
+    // Cache the enterprise login token for reuse
+    enterpriseTokenCache[combo.ent] = cleanTok;
+    log('info', `[${combo.ent}] Login token cached for future use`);
     // Verify generated token has correct teamId
     try {
       const tp = JSON.parse(atob(d.token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));

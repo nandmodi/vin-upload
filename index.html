@@ -398,6 +398,8 @@ function clearLoginToken() {
 /* ─── Generate tokens enterprise by enterprise via popup ─── */
 
 async function fetchAllTokens() {
+  // Skip during migration — Phase 3 generates fresh tokens per VIN
+  if (window._migrationRunning) { log('info', 'Skipping fetchAllTokens during migration'); return; }
   // Group combos by enterprise
   const entGroups = {};
   Object.keys(comboMap).forEach(k => {
@@ -1299,6 +1301,8 @@ async function confirmAndRun() {
   var shouldDelete = document.getElementById('deleteChk').checked;
   closeDeleteModal();
 
+  window._migrationRunning = true; // prevent fetchAllTokens from running
+
   // Show progress + log
   document.getElementById('mig-progress').style.display = '';
   document.getElementById('migSection').style.display = '';
@@ -1545,6 +1549,7 @@ async function confirmAndRun() {
     setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
   }
 
+  window._migrationRunning = false; // allow fetchAllTokens again
   migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));
   setMigProg(100, '✅ Migration complete!');
   document.getElementById('migSub').textContent = 'Migration complete ✓';

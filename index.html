@@ -549,8 +549,20 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
     const d = await r.json();
     if (!r.ok || !d.token) throw new Error(d.error || 'Failed');
     combo.token = d.token;
+    // Verify generated token has correct teamId
+    try {
+      const tp = JSON.parse(atob(d.token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      const tokenTeam = tp.teamId || tp.team_id || '';
+      if (tokenTeam && tokenTeam !== combo.team) {
+        log('err', `[${combo.ent}/${combo.team}] ⚠ TEAM MISMATCH — token has teamId=${tokenTeam} but need ${combo.team}`);
+        if (typeof migLog === 'function') migLog('err', '⚠ Team mismatch for ' + combo.ent + '/' + combo.team + ': token has ' + tokenTeam);
+      } else {
+        log('ok', `[${combo.ent}/${combo.team}] Token ready ✅ teamId=${tokenTeam}`);
+      }
+    } catch(e) {
+      log('ok', `[${combo.ent}/${combo.team}] Token ready ✅`);
+    }
     if (stEl) { stEl.textContent='✓ Token ready'; stEl.className='cs ok'; }
-    log('ok', `[${combo.ent}/${combo.team}] Token ready ✅`);
   } catch(err) {
     combo.token = null;
     if (stEl) { stEl.textContent='✗ Failed'; stEl.className='cs err'; }

@@ -1245,7 +1245,7 @@ async function migFetchImages() {
   var withImages = migData.filter(function(d) { return d.images.length > 0; }).length;
   var totalImgs  = migData.reduce(function(a,d){ return a + d.images.length; }, 0);
   migLog('blue', 'Fetch complete — ' + withImages + '/' + migRows.length + ' rows have images');
-  document.getElementById('migSub').textContent = withImages + ' rows ready for upload';
+  var migSubEl = document.getElementById('tblSub'); if (migSubEl) migSubEl.textContent = withImages + ' VINs ready · click Run Pipeline';
   document.getElementById('mig-stat-images').textContent = totalImgs;
 }
 
@@ -1566,7 +1566,7 @@ async function confirmAndRun() {
   var migSec = document.getElementById('migSection');
   if (migSec) { migSec.style.display = ''; migSec.scrollIntoView({ behavior: 'smooth' }); }
   setMigProg(100, '✅ Migration complete!');
-  document.getElementById('migSub').textContent = 'Migration complete ✓';
+  var migSubEl2 = document.getElementById('tblSub'); if (migSubEl2) migSubEl2.textContent = 'Migration complete ✓';
   document.getElementById('runBtn').disabled = false;
   document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
   var subEl = document.getElementById('mig-stat-submitted');

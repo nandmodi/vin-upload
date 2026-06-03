@@ -448,14 +448,11 @@ function getEnterpriseToken(spyneUrl, ent, firstTeam) {
       } catch(e) { return null; }
     }
 
-    // Always try fresh localStorage token first — works when running inside console.spyne.ai
-    const cur = readLocalToken();
-    if (cur) {
-      // localStorage has a valid token — use it regardless of which enterprise
-      // generate-token Lambda works with any valid loginToken
-      log('ok', 'Using localStorage token (ent: ' + cur.ent + ') for ' + ent);
-      enterpriseTokenCache[ent] = cur.tok;
-      resolve({ tok: cur.tok, uid: cur.uid });
+    // Use the tool's own loginToken — this is the token saved in the tool
+    // which is confirmed to work for generate-token Lambda
+    if (loginToken) {
+      log('ok', 'Using tool loginToken for enterprise ' + ent);
+      resolve({ tok: loginToken.replace(/^Bearer /i, ''), uid: loginUserId });
       return;
     }
 

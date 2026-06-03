@@ -1474,16 +1474,19 @@ async function confirmAndRun() {
       continue;
     }
 
-    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ')');
+    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ', ' + imageUrls.length + ' images)');
     var bgIdEl = document.getElementById('mig-bgid-'+d.idx);
     if (bgIdEl) bgIdEl.textContent = bgId;
     document.getElementById('mig-spyne-'+d.idx).innerHTML = '<span class="badge" style="color:var(--amber)">⟳ Sending</span>';
 
     try {
-      migLog('info', '  token[0:30]: ' + (entToken ? entToken.substring(0,30) : 'NULL'));
+      // Add 30s timeout to prevent hanging
+      var spyneController = new AbortController();
+      var spyneTimeout = setTimeout(function(){ spyneController.abort(); }, 30000);
       var spyneResp = await fetch(API_BASE + '/spyne-process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: spyneController.signal,
         body: JSON.stringify({
           vin:          vinName,
           teamId:       newTeam,
@@ -1492,6 +1495,7 @@ async function confirmAndRun() {
           spyneToken:   entToken
         })
       });
+      clearTimeout(spyneTimeout);
       var spyneData = await spyneResp.json();
       if (!spyneResp.ok) throw new Error(spyneData.error || 'HTTP ' + spyneResp.status);
 

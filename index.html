@@ -1398,7 +1398,7 @@ async function confirmAndRun() {
           migLog('ok', '  ✓ bg_id (team): ' + bgId2);
 
         } else if (teamBgs.length > 1) {
-          // 3. Multiple bgs — show dropdown (same as folder upload)
+          // 3. Multiple bgs — show dropdown exactly like folder upload
           var sel2 = document.createElement('select');
           sel2.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;';
           sel2.innerHTML = '<option value="">Select bg_id…</option>' +
@@ -1409,8 +1409,8 @@ async function confirmAndRun() {
             }).join('');
           sel2.onchange = function() { combo2.bgId = sel2.value; };
           if (bgEl2) bgEl2.parentNode.replaceChild(sel2, bgEl2);
-          if (stBg2) { stBg2.textContent = teamBgs.length + ' options'; stBg2.style.color = 'var(--blue)'; }
-          migLog('info', '  ' + teamBgs.length + ' bg_ids available — select one in combos box');
+          if (stBg2) { stBg2.textContent = teamBgs.length + ' options — select one'; stBg2.style.color = 'var(--blue)'; }
+          migLog('info', '  ' + teamBgs.length + ' bg_ids available — select one in the Combos box above then click Run Pipeline again');
 
         } else {
           // 4. No bg_id found
@@ -1426,7 +1426,7 @@ async function confirmAndRun() {
   // Validate all combos have bg_id
   var missingBg = newCombos.filter(function(ck) { return !comboMap[ck].bgId; });
   if (missingBg.length) {
-    migLog('err', 'Missing bg_id for: ' + missingBg.join(', '));
+    migLog('err', '⚠ Missing bg_id for: ' + missingBg.join(', ') + ' — select from dropdown in Combos box then click Run Pipeline again');
     // Highlight in red same as original
     missingBg.forEach(function(ck) {
       var el = document.getElementById('bg-' + ck.replace(/[/]/g,'_'));

@@ -434,93 +434,11 @@ async function fetchAllTokens() {
 }
 
 function getEnterpriseToken(spyneUrl, ent, firstTeam) {
+  // No popup needed — loginToken works directly with generate-token Lambda
+  // Confirmed: any valid loginToken generates correct enterprise-scoped token
   return new Promise((resolve) => {
-    log('info', 'Getting token for enterprise ' + ent + '…');
-
-    function readLocalToken() {
-      try {
-        const tok = localStorage.getItem('defaultBearerToken') || '';
-        const raw = tok.replace(/^Bearer /i, '');
-        if (!raw) return null;
-        const p = JSON.parse(atob(raw.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-        const ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
-        return { tok: raw, uid: ud.userId || ud._id || loginUserId, ent: p.enterprise_id || p.enterpriseId || '' };
-      } catch(e) { return null; }
-    }
-
-    // Use the tool's own loginToken — this is the token saved in the tool
-    // which is confirmed to work for generate-token Lambda
-    if (loginToken) {
-      log('ok', 'Using tool loginToken for enterprise ' + ent);
-      resolve({ tok: loginToken.replace(/^Bearer /i, ''), uid: loginUserId });
-      return;
-    }
-
-    // Open Spyne inventory URL for target enterprise — this triggers localStorage update
-    var inventoryUrl = 'https://console.spyne.ai/inventory/v2/overview?enterprise_id=' 
-                     + encodeURIComponent(ent) + '&team_id=' + encodeURIComponent(firstTeam || '');
-    
-    log('info', 'Opening enterprise ' + ent + ' via inventory URL…');
-    var popup = window.open(inventoryUrl, 'spyne_switch_' + ent, 'width=300,height=200,left=200,top=100');
-
-    var attempts = 0;
-    var done = false;
-
-    var checkInterval = setInterval(function() {
-      attempts++;
-
-      // Check main window localStorage — Spyne updates it when inventory page loads
-      var r = readLocalToken();
-      if (r && r.ent === ent && attempts >= 3 && !done) {
-        done = true;
-        clearInterval(checkInterval);
-        try { popup && popup.close(); } catch(e) {}
-        log('ok', 'Enterprise ' + ent + ' detected in localStorage ✅');
-        enterpriseTokenCache[ent] = r.tok;
-        resolve({ tok: r.tok, uid: r.uid });
-        return;
-      }
-
-      // Also check popup localStorage
-      try {
-        var ptok = popup.localStorage.getItem('defaultBearerToken') || '';
-        var praw = ptok.replace(/^Bearer /i, '');
-        if (praw) {
-          var pp = JSON.parse(atob(praw.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-          var pent = pp.enterprise_id || pp.enterpriseId || '';
-          if (pent === ent && attempts >= 3 && !done) {
-            done = true;
-            clearInterval(checkInterval);
-            try { popup.close(); } catch(e) {}
-            var pud = JSON.parse(popup.localStorage.getItem('userDetails') || '{}');
-            log('ok', 'Enterprise ' + ent + ' confirmed via popup ✅');
-            enterpriseTokenCache[ent] = praw;
-            resolve({ tok: praw, uid: pud.userId || pud._id || loginUserId });
-            return;
-          }
-        }
-      } catch(e) {}
-
-      // Popup closed by user
-      if (popup && popup.closed && !done) {
-        done = true;
-        clearInterval(checkInterval);
-        var r2 = readLocalToken();
-        log('info', 'Popup closed — current enterprise: ' + (r2 ? r2.ent : 'none'));
-        resolve({ tok: r2 ? r2.tok : loginToken, uid: r2 ? r2.uid : loginUserId });
-        return;
-      }
-
-      // Timeout after 15 seconds
-      if (attempts >= 30 && !done) {
-        done = true;
-        clearInterval(checkInterval);
-        try { popup && popup.close(); } catch(e) {}
-        var r3 = readLocalToken();
-        log('warn', 'Timeout — current enterprise: ' + (r3 ? r3.ent : 'none'));
-        resolve({ tok: r3 ? r3.tok : loginToken, uid: r3 ? r3.uid : loginUserId });
-      }
-    }, 500);
+    log('ok', 'Token ready for enterprise ' + ent);
+    resolve({ tok: loginToken.replace(/^Bearer /i, ''), uid: loginUserId });
   });
 }
 
@@ -1297,9 +1215,12 @@ async function migFetchImages() {
     var imgs = qe.images || [];
     migLog(imgs.length ? 'ok' : 'warn', queryMap[qk].row.vin_name + ': ' + imgs.length + ' images');
     qe.indices.forEach(function(i) {
-      document.getElementById('mig-imgs-'+i).textContent = imgs.length;
-      document.getElementById('mig-spyne-'+i).innerHTML = '<span class="badge pending">Pending</span>';
-      document.getElementById('mig-status-'+i).innerHTML = imgs.length
+      var imgsEl  = document.getElementById('mig-imgs-'+i);
+      var spyneEl = document.getElementById('mig-spyne-'+i);
+      var statEl  = document.getElementById('mig-status-'+i);
+      if (imgsEl)  imgsEl.textContent = imgs.length;
+      if (spyneEl) spyneEl.innerHTML = '<span class="badge pending">Pending</span>';
+      if (statEl)  statEl.innerHTML = imgs.length
         ? '<span class="badge s3ok">Ready</span>'
         : '<span class="badge error">No images</span>';
     });

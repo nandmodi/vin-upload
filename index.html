@@ -546,6 +546,7 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
       else throw new Error('No enterprise token for ' + combo.ent);
     }
     const cleanTok = tok.replace(/^Bearer\s+/i, '');
+    log('info', `[${comboKey}] generate-token with loginToken: ${cleanTok.substring(0,30)}…`);
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1555,6 +1556,7 @@ async function confirmAndRun() {
     }
 
     migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ', ent: ' + d.row.new_enterprise_id + ')');
+    migLog('info', '  token: ' + (entToken ? entToken.substring(0,30)+'…' : 'NULL'));
 
     try {
       var spyneResp = await fetch(API_BASE + '/spyne-process', {

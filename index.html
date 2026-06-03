@@ -319,7 +319,15 @@
       </div>
     </div>
 
-    <!-- Progress bar (hidden until running) -->
+    <!-- Stats — same as folder upload -->
+    <div class="stats" style="margin-bottom:16px;">
+      <div class="stat"><div class="stat-lbl">Total VINs</div><div class="stat-val blue" id="mig-stat-total">0</div></div>
+      <div class="stat"><div class="stat-lbl">Images Found</div><div class="stat-val green" id="mig-stat-images">0</div></div>
+      <div class="stat"><div class="stat-lbl">Submitted</div><div class="stat-val amber" id="mig-stat-submitted">0</div></div>
+      <div class="stat"><div class="stat-lbl">Errors</div><div class="stat-val red" id="mig-stat-errors">0</div></div>
+    </div>
+
+    <!-- Progress bar -->
     <div id="mig-progress" style="display:none;margin-bottom:14px;">
       <div class="prog-row">
         <div class="prog-lbl"><span id="mig-prog-label">Running…</span><span id="mig-prog-pct">0%</span></div>
@@ -327,8 +335,8 @@
       </div>
     </div>
 
-    <!-- Log (hidden until running) -->
-    <div id="mig-log-wrap" style="display:none;margin-bottom:14px;">
+    <!-- Migration Log — always visible like Activity Log in folder upload -->
+    <div id="mig-log-wrap" style="margin-bottom:14px;">
       <div class="log-wrap">
         <div class="log-head"><span>Migration Log</span><button class="btn sm" onclick="document.getElementById('migLog').innerHTML=''">Clear</button></div>
         <div class="log-body" id="migLog"></div>
@@ -467,7 +475,7 @@ function getEnterpriseToken(spyneUrl, ent) {
         resolve({ tok: loginToken, uid: loginUserId });
         return;
       }
-      if (attempts >= 8) { // 4 seconds — enough for page load
+      if (attempts >= 16) { // 8 seconds — enough for page load and enterprise switch
         clearInterval(check);
         try { popup.close(); } catch(e) {}
         log('ok', `Enterprise ${ent} ready — generating token via Lambda`);
@@ -1122,6 +1130,11 @@ function handleMigCSV(file) {
     document.getElementById('migSection').style.display = '';
     document.getElementById('migSub').textContent = rows.length + ' rows loaded — click Run Pipeline to start';
 
+    // Update stats
+    document.getElementById('mig-stat-total').textContent = rows.length;
+    document.getElementById('mig-stat-images').textContent = '0';
+    document.getElementById('mig-stat-submitted').textContent = '0';
+    document.getElementById('mig-stat-errors').textContent = '0';
     // Enable Run Pipeline button
     document.getElementById('runBtn').disabled = false;
 
@@ -1236,8 +1249,10 @@ async function migFetchImages() {
   });
 
   var withImages = migData.filter(function(d) { return d.images.length > 0; }).length;
+  var totalImgs  = migData.reduce(function(a,d){ return a + d.images.length; }, 0);
   migLog('blue', 'Fetch complete — ' + withImages + '/' + migRows.length + ' rows have images');
   document.getElementById('migSub').textContent = withImages + ' rows ready for upload';
+  document.getElementById('mig-stat-images').textContent = totalImgs;
 }
 
 // Router — decides which pipeline to run based on what is loaded
@@ -1294,11 +1309,10 @@ async function confirmAndRun() {
 
   // Show progress + log
   document.getElementById('mig-progress').style.display = '';
-  var logWrap = document.getElementById('mig-log-wrap');
-  if (logWrap) logWrap.style.display = '';
   document.getElementById('migSection').style.display = '';
   document.getElementById('runBtn').disabled = true;
   document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
+  setStatus('running', 'Migration running…');
 
   // ── Phase 1: Fetch images from Metabase ──
   setMigProg(0, '📡 Phase 1/3 — Fetching images from Metabase…');
@@ -1311,12 +1325,14 @@ async function confirmAndRun() {
     setMigProg(100, '✗ No images found');
     document.getElementById('runBtn').disabled = false;
     document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
+    setStatus('error', 'No images found');
     return;
   }
 
   // ── Phase 2: Setup combos for new enterprises (same as folder upload) ──
   migLog('blue', '━━ Phase 2: Setting up enterprise tokens & bg_ids');
   setMigProg(40, '⬆ Phase 2/3 — Getting tokens & bg_ids…');
+  setStatus('running', 'Getting tokens & bg_ids…');
 
   // Build comboMap entries for new enterprise+team combos
   // This reuses the EXACT same combo system as folder upload
@@ -1440,6 +1456,7 @@ async function confirmAndRun() {
   // ── Phase 3: Upload each VIN ──
   migLog('blue', '━━ Phase 3: Uploading VINs to new accounts');
   setMigProg(60, '⬆ Phase 3/3 — Uploading VINs…');
+  setStatus('running', 'Uploading to Spyne…');
 
   var done  = 0;
   var total = toRun.length;
@@ -1481,6 +1498,8 @@ async function confirmAndRun() {
 
       migLog('ok', '✓ ' + vinName + ' submitted');
       document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
+      var subEl = document.getElementById('mig-stat-submitted');
+      if (subEl) subEl.textContent = parseInt(subEl.textContent||0) + 1;
 
       // Delete from old enterprise only if upload succeeded
       if (shouldDelete) {
@@ -1512,6 +1531,8 @@ async function confirmAndRun() {
     } catch(e) {
       migLog('err', '✗ ' + vinName + ': ' + e.message);
       document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
+      var errEl = document.getElementById('mig-stat-errors');
+      if (errEl) errEl.textContent = parseInt(errEl.textContent||0) + 1;
     }
 
     done++;
@@ -1523,6 +1544,11 @@ async function confirmAndRun() {
   document.getElementById('migSub').textContent = 'Migration complete ✓';
   document.getElementById('runBtn').disabled = false;
   document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
+  var subEl = document.getElementById('mig-stat-submitted');
+  var errEl = document.getElementById('mig-stat-errors');
+  var submitted = subEl ? subEl.textContent : '0';
+  var errors    = errEl ? errEl.textContent : '0';
+  setStatus('done', submitted + ' submitted · ' + errors + ' errors');
 }
 
 function migExportCSV() {
@@ -1554,8 +1580,10 @@ function resetMig() {
   if (migLog) migLog.innerHTML = '';
   var migProg = document.getElementById('mig-progress');
   if (migProg) migProg.style.display = 'none';
-  var logWrap = document.getElementById('mig-log-wrap');
-  if (logWrap) logWrap.style.display = 'none';
+  setStatus('idle', '');
+  ['mig-stat-total','mig-stat-images','mig-stat-submitted','mig-stat-errors'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.textContent = '0';
+  });
   document.getElementById('csvMigInput').value = '';
   // Re-disable Run Pipeline if no folder loaded either
   if (!Object.keys(vinMap).length) {

@@ -1570,13 +1570,9 @@ async function confirmAndRun() {
 
   window._migrationRunning = false;
   migLog('blue', '✓ Migration complete' + (shouldDelete ? ' (with delete)' : ''));
-  // Auto-clear CSV input after completion
-  var csvInput = document.getElementById('csvMigInput');
-  if (csvInput) csvInput.value = '';
-  var capCTxt = document.getElementById('cap-csv-txt');
-  if (capCTxt) capCTxt.textContent = 'Upload CSV';
-  var capC = document.getElementById('cap-csv');
-  if (capC) { capC.style.background = ''; capC.style.color = ''; }
+  // Keep migSection visible — scroll to show results
+  var migSec = document.getElementById('migSection');
+  if (migSec) { migSec.style.display = ''; migSec.scrollIntoView({ behavior: 'smooth' }); }
   setMigProg(100, '✅ Migration complete!');
   document.getElementById('migSub').textContent = 'Migration complete ✓';
   document.getElementById('runBtn').disabled = false;

@@ -663,7 +663,21 @@ function renderCombos(keys) {
   });
   document.getElementById('combosSection').style.display='block';
 
-  // bg_ids will be fetched after enterprise token is obtained in pipeline
+  // Restore existing bgId values into inputs (preserves values across re-renders)
+  keys.forEach(k => {
+    const id = k.replace(/\//g,'_');
+    const bgEl = document.getElementById('bg-'+id);
+    const stBgEl = document.getElementById('stbg-'+id);
+    if (bgEl && comboMap[k] && comboMap[k].bgId) {
+      bgEl.value = comboMap[k].bgId;
+      bgEl.style.borderColor = 'var(--green)';
+      if (stBgEl) { stBgEl.textContent = '✓ Auto bg_id'; stBgEl.style.color = 'var(--green)'; }
+    }
+    if (comboMap[k] && comboMap[k].token) {
+      const stEl = document.getElementById('st-'+id);
+      if (stEl) { stEl.textContent = '✓ Token ready'; stEl.className = 'cs ok'; }
+    }
+  });
 }
 
 function renderTable(keys) {
@@ -1347,8 +1361,8 @@ async function confirmAndRun() {
     return acc;
   }, []);
 
-  renderCombos(newCombos);
-  document.getElementById('combosSection').style.display = '';
+  // Don't call renderCombos during migration — it triggers fetchAllTokens
+  // which pre-generates tokens and invalidates them before Phase 3 uses them
 
   // Get tokens enterprise by enterprise (same as runPipeline)
   var entGroups = {};

@@ -1532,33 +1532,31 @@ async function confirmAndRun() {
     var newTeam   = d.row.new_teamid;
     var ck        = d.row.new_enterprise_id + '/' + newTeam;
     var imageUrls = d.images.map(function(img){ return img.url; });
-    var bgId      = comboMap[ck].bgId;
-    var entToken  = comboMap[ck].token;
+    var bgId = comboMap[ck].bgId;
 
-    // Log token enterprise for debugging
-    try {
-      var tp = JSON.parse(atob(entToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-      var tokenEnt = tp.enterpriseId || tp.enterprise_id || '?';
-      if (tokenEnt !== d.row.new_enterprise_id) {
-        migLog('err', '⚠ Token mismatch for ' + vinName + ': token has ' + tokenEnt + ' but need ' + d.row.new_enterprise_id + ' — skipping');
-        document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Token Mismatch</span>';
-        done++; setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
-        continue;
-      }
-      migLog('info', '  token ent: ' + tokenEnt + ' ✅ matches ' + d.row.new_enterprise_id);
-    } catch(te) {}
+    // Generate fresh token per VIN — Spyne invalidates previous token when new one generated
+    migLog('info', 'Getting fresh token for ' + ck);
+    var freshTokResp = await fetch(API_BASE + '/generate-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        loginToken:   loginToken,
+        enterpriseId: d.row.new_enterprise_id,
+        teamId:       newTeam,
+        userId:       loginUserId
+      })
+    });
+    var freshTokData = await freshTokResp.json();
+    var entToken = freshTokData.token || null;
 
-    // If token generation failed, skip this VIN
     if (!entToken) {
-      migLog('err', '✗ ' + vinName + ': no enterprise token — skipping (check Activity Log for error)');
+      migLog('err', '✗ ' + vinName + ': token generation failed — ' + (freshTokData.error || 'unknown'));
       document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ No Token</span>';
-      done++;
-      setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
+      done++; setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
       continue;
     }
 
-    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ', ent: ' + d.row.new_enterprise_id + ')');
-    migLog('info', '  token: ' + (entToken ? entToken.substring(0,30)+'…' : 'NULL'));
+    migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ')');
 
     try {
       migLog('info', '  token[0:30]: ' + (entToken ? entToken.substring(0,30) : 'NULL'));

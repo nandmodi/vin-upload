@@ -1043,7 +1043,24 @@ window.addEventListener('load', () => {
   document.body.appendChild(csvInput);
 
 
-  // ── Priority 1: Token from URL params (bookmark) ──
+  // ── Priority 1: Auto-fetch from localStorage (most reliable — always fresh) ──
+  try {
+    var stored = localStorage.getItem('defaultBearerToken');
+    if (stored) {
+      var rawToken = stored.replace(/^Bearer\s+/i, '');
+      var ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      var uid = ud.userId || ud._id || '';
+      applyToken(rawToken, uid);
+      log('ok', 'Token auto-loaded from browser session · userId: ' + loginUserId);
+      // Also check URL params for userId override
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('uid')) loginUserId = params.get('uid');
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+  } catch(e) {}
+
+  // ── Priority 2: Token from URL params (bookmark fallback) ──
   const params   = new URLSearchParams(window.location.search);
   const urlToken = params.get('loginToken') || params.get('token');
   const urlUid   = params.get('uid') || '';
@@ -1053,21 +1070,6 @@ window.addEventListener('load', () => {
     window.history.replaceState({}, '', window.location.pathname);
     log('ok', 'Token loaded from URL · userId: ' + loginUserId);
     return;
-  }
-
-  // ── Priority 2: Auto-fetch from localStorage (works when running inside console.spyne.ai) ──
-  try {
-    var stored = localStorage.getItem('defaultBearerToken');
-    if (stored) {
-      var rawToken = stored.replace(/^Bearer\s+/i, '');
-      var ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
-      var uid = ud.userId || ud._id || '';
-      applyToken(rawToken, uid);
-      log('ok', 'Token auto-loaded from browser session · userId: ' + loginUserId);
-      return;
-    }
-  } catch(e) {
-    // Not running inside console.spyne.ai — localStorage not accessible
   }
 
   // ── No token found — show hint ──

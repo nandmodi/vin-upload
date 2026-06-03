@@ -1364,11 +1364,9 @@ async function confirmAndRun() {
       migLog('err', 'Could not get token for ' + ent);
       continue;
     }
-    for (var ci = 0; ci < combos.length; ci++) {
-      await generateTokenViaLambda(combos[ci], entResult.tok, entResult.uid);
-    }
+    // Token generation removed from Phase 2 — Phase 3 generates fresh token per VIN
+    // This prevents Spyne invalidating tokens when multiple are generated
     // Fetch bg_id using same fetchBgId function as folder upload
-    // loginToken already has Bearer prefix and is confirmed working from previous tests
     for (var ci = 0; ci < combos.length; ci++) {
       var ck2 = combos[ci];
       var combo2 = comboMap[ck2];

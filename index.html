@@ -284,6 +284,32 @@
       <div class="tbl-title">Processing Queue</div>
       <div class="tbl-sub" id="tblSub">Select a folder to populate the queue</div>
     </div>
+    <div id="mig-tbl-btns" style="display:none;gap:8px;align-items:center;">
+      <button class="btn sm" onclick="migExportCSV()">&#8595; Export</button>
+      <button class="btn sm" onclick="resetMig()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Migration stats+log — shown above table when CSV loaded -->
+  <div id="migSection" style="display:none;padding:0 0 8px 0;">
+    <div class="stats" style="margin-bottom:16px;">
+      <div class="stat"><div class="stat-lbl">Total VINs</div><div class="stat-val blue" id="mig-stat-total">0</div></div>
+      <div class="stat"><div class="stat-lbl">Images Found</div><div class="stat-val green" id="mig-stat-images">0</div></div>
+      <div class="stat"><div class="stat-lbl">Submitted</div><div class="stat-val amber" id="mig-stat-submitted">0</div></div>
+      <div class="stat"><div class="stat-lbl">Errors</div><div class="stat-val red" id="mig-stat-errors">0</div></div>
+    </div>
+    <div id="mig-progress" style="display:none;margin-bottom:14px;">
+      <div class="prog-row">
+        <div class="prog-lbl"><span id="mig-prog-label">Running…</span><span id="mig-prog-pct">0%</span></div>
+        <div class="prog-bar"><div class="prog-fill" id="mig-prog-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div id="mig-log-wrap" style="margin-bottom:14px;">
+      <div class="log-wrap">
+        <div class="log-head"><span>Migration Log</span><button class="btn sm" onclick="document.getElementById('migLog').innerHTML=''">Clear</button></div>
+        <div class="log-body" id="migLog"></div>
+      </div>
+    </div>
   </div>
 
   <div class="tbl-wrap">
@@ -292,6 +318,7 @@
       <p>No folder selected</p>
       <span style="font-size:12px;color:var(--hint);">Select your root folder from the sidebar</span>
     </div>
+    <!-- Folder upload table -->
     <table id="vinTable" style="display:none;">
       <thead>
         <tr>
@@ -302,65 +329,26 @@
       </thead>
       <tbody id="vinBody"></tbody>
     </table>
+    <!-- Migration table — shown instead of folder table when CSV loaded -->
+    <table id="migTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Enterprise</th><th>Team</th><th>VIN</th>
+          <th>BG ID</th><th>Images</th><th>Spyne</th><th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="migBody"></tbody>
+    </table>
   </div>
 </div>
 
 
-  <!-- ═══ MIGRATION SECTION ═══ -->
-  <div id="migSection" style="display:none;margin-top:28px;">
-    <div class="tbl-head">
-      <div>
-        <div class="tbl-title">VIN Migration</div>
-        <div class="tbl-sub" id="migSub">Ready — click Run Pipeline to start</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn sm" onclick="migExportCSV()">&#8595; Export</button>
-        <button class="btn sm" onclick="resetMig()">✕ Clear</button>
-      </div>
-    </div>
-
-    <!-- Stats — same as folder upload -->
-    <div class="stats" style="margin-bottom:16px;">
-      <div class="stat"><div class="stat-lbl">Total VINs</div><div class="stat-val blue" id="mig-stat-total">0</div></div>
-      <div class="stat"><div class="stat-lbl">Images Found</div><div class="stat-val green" id="mig-stat-images">0</div></div>
-      <div class="stat"><div class="stat-lbl">Submitted</div><div class="stat-val amber" id="mig-stat-submitted">0</div></div>
-      <div class="stat"><div class="stat-lbl">Errors</div><div class="stat-val red" id="mig-stat-errors">0</div></div>
-    </div>
-
-    <!-- Progress bar -->
-    <div id="mig-progress" style="display:none;margin-bottom:14px;">
-      <div class="prog-row">
-        <div class="prog-lbl"><span id="mig-prog-label">Running…</span><span id="mig-prog-pct">0%</span></div>
-        <div class="prog-bar"><div class="prog-fill" id="mig-prog-fill" style="width:0%"></div></div>
-      </div>
-    </div>
-
-    <!-- Migration Log — always visible like Activity Log in folder upload -->
-    <div id="mig-log-wrap" style="margin-bottom:14px;">
-      <div class="log-wrap">
-        <div class="log-head"><span>Migration Log</span><button class="btn sm" onclick="document.getElementById('migLog').innerHTML=''">Clear</button></div>
-        <div class="log-body" id="migLog"></div>
-      </div>
-    </div>
-
-    <!-- VIN table -->
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr>
-          <th>Enterprise</th><th>Team</th><th>VIN</th>
-          <th>BG ID</th><th>Images</th><th>Spyne</th><th>Result</th>
-        </tr></thead>
-        <tbody id="migBody"></tbody>
-      </table>
-    </div>
-
-    <!-- Hidden inputs for config — used by pipeline -->
-    <input type="hidden" id="mig-userId" value="">
-    <input type="hidden" id="mig-bgId" value="85433">
-    <input type="hidden" id="mig-catId" value="cat_d8R14zfNg">
-    <input type="hidden" id="mig-fetch-btn">
-    <input type="hidden" id="mig-run-btn">
-  </div>
+  <!-- Hidden inputs for migration -->
+  <input type="hidden" id="mig-userId" value="">
+  <input type="hidden" id="mig-bgId" value="85433">
+  <input type="hidden" id="mig-catId" value="cat_d8R14zfNg">
+  <input type="hidden" id="mig-fetch-btn">
+  <input type="hidden" id="mig-run-btn">
 
 </div>
 </div>
@@ -1124,9 +1112,13 @@ function handleMigCSV(file) {
       if (capFInfo) capFInfo.style.display = 'none';
     }
 
-    // Show migration section
+    // Show migration table in Processing Queue area
     document.getElementById('migSection').style.display = '';
-    document.getElementById('migSub').textContent = rows.length + ' rows loaded — click Run Pipeline to start';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('vinTable').style.display = 'none';
+    document.getElementById('migTable').style.display = 'table';
+    document.getElementById('tblSub').textContent = rows.length + ' VINs loaded — click Run Pipeline to start';
+    document.getElementById('mig-tbl-btns').style.display = 'flex';
 
     // Update stats
     document.getElementById('mig-stat-total').textContent = rows.length;
@@ -1611,6 +1603,11 @@ function resetMig() {
   if (migBody) migBody.innerHTML = '';
   var migLog = document.getElementById('migLog');
   if (migLog) migLog.innerHTML = '';
+  // Restore folder upload view
+  document.getElementById('migTable').style.display = 'none';
+  document.getElementById('emptyState').style.display = '';
+  document.getElementById('tblSub').textContent = 'Select a folder to populate the queue';
+  document.getElementById('mig-tbl-btns').style.display = 'none';
   var migProg = document.getElementById('mig-progress');
   if (migProg) migProg.style.display = 'none';
   setStatus('idle', '');

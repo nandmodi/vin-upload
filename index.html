@@ -1465,26 +1465,35 @@ async function confirmAndRun() {
     var newTeam   = d.row.new_teamid;
     var ck        = d.row.new_enterprise_id + '/' + newTeam;
     var imageUrls = d.images.map(function(img){ return img.url; });
-    var bgId = comboMap[ck].bgId;
+    // Safety check
+    if (!comboMap[ck]) {
+      migLog('err', '✗ ' + vinName + ': no combo entry for ' + ck);
+      done++; continue;
+    }
+    var bgId = comboMap[ck].bgId || '';
 
-    // Generate fresh token per VIN — Spyne invalidates previous token when new one generated
+    // Generate fresh token right before upload
     migLog('info', 'Getting fresh token for ' + ck);
-    var freshTokResp = await fetch(API_BASE + '/generate-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        loginToken:   loginToken,
-        enterpriseId: d.row.new_enterprise_id,
-        teamId:       newTeam,
-        userId:       loginUserId
-      })
-    });
-    var freshTokData = await freshTokResp.json();
-    var entToken = freshTokData.token || null;
-
-    if (!entToken) {
-      migLog('err', '✗ ' + vinName + ': token generation failed — ' + (freshTokData.error || 'unknown'));
-      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ No Token</span>';
+    var entToken = null;
+    try {
+      var freshTokResp = await fetch(API_BASE + '/generate-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loginToken:   loginToken,
+          enterpriseId: d.row.new_enterprise_id,
+          teamId:       newTeam,
+          userId:       loginUserId
+        })
+      });
+      var freshTokData = await freshTokResp.json();
+      entToken = freshTokData.token || null;
+      if (!entToken) throw new Error(freshTokData.error || 'No token returned');
+      migLog('ok', '  ✓ Token ready');
+    } catch(tokErr) {
+      migLog('err', '✗ ' + vinName + ': token failed — ' + tokErr.message);
+      var stEl = document.getElementById('mig-status-'+d.idx);
+      if (stEl) stEl.innerHTML = '<span class="badge error">✗ No Token</span>';
       done++; setMigProg(60 + Math.round(done/total*38), '⬆ ' + done + ' / ' + total + ' VINs');
       continue;
     }

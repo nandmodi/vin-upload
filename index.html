@@ -1317,9 +1317,9 @@ async function confirmAndRun() {
 
   window._migrationRunning = true; // prevent fetchAllTokens from running
 
-  // Show progress + log
-  document.getElementById('mig-progress').style.display = '';
+  // Show migration section and progress FIRST
   document.getElementById('migSection').style.display = '';
+  document.getElementById('mig-progress').style.display = '';
   document.getElementById('runBtn').disabled = true;
   document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
   setStatus('running', 'Migration running…');
@@ -1501,7 +1501,7 @@ async function confirmAndRun() {
     migLog('info', 'Uploading ' + vinName + ' (bg_id: ' + bgId + ', ' + imageUrls.length + ' images)');
     var bgIdEl = document.getElementById('mig-bgid-'+d.idx);
     if (bgIdEl) bgIdEl.textContent = bgId;
-    document.getElementById('mig-spyne-'+d.idx).innerHTML = '<span class="badge" style="color:var(--amber)">⟳ Sending</span>';
+    var spEl0 = document.getElementById('mig-spyne-'+d.idx); if (spEl0) spEl0.innerHTML = '<span class="badge" style="color:var(--amber)">⟳ Sending</span>';
 
     try {
       // Add 30s timeout to prevent hanging
@@ -1524,8 +1524,8 @@ async function confirmAndRun() {
       if (!spyneResp.ok) throw new Error(spyneData.error || 'HTTP ' + spyneResp.status);
 
       migLog('ok', '✓ ' + vinName + ' submitted');
-      document.getElementById('mig-spyne-'+d.idx).innerHTML = '<span class="badge spyneok">✓ 202</span>';
-      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Queued</span>';
+      var spEl1 = document.getElementById('mig-spyne-'+d.idx); if (spEl1) spEl1.innerHTML = '<span class="badge spyneok">✓ 202</span>';
+      var stEl1 = document.getElementById('mig-status-'+d.idx); if (stEl1) stEl1.innerHTML = '<span class="badge spyneok">✓ Queued</span>';
       var subEl = document.getElementById('mig-stat-submitted');
       if (subEl) subEl.textContent = parseInt(subEl.textContent||0) + 1;
 
@@ -1549,8 +1549,8 @@ async function confirmAndRun() {
             var delData = await delResp.json();
             if (!delResp.ok || delData.error) throw new Error(delData.error || delData.message || 'HTTP ' + delResp.status);
             migLog('ok', '🗑 Deleted ' + vinName + ' from ' + d.row.old_enterprise_id);
-            document.getElementById('mig-spyne-'+d.idx).innerHTML = '<span class="badge spyneok">✓ 202</span>';
-            document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
+            var spEl2 = document.getElementById('mig-spyne-'+d.idx); if (spEl2) spEl2.innerHTML = '<span class="badge spyneok">✓ 202</span>';
+            var stEl2 = document.getElementById('mig-status-'+d.idx); if (stEl2) stEl2.innerHTML = '<span class="badge spyneok">✓ Moved &amp; Deleted</span>';
           } catch(de) {
             migLog('warn', '⚠ Delete failed ' + vinName + ': ' + de.message);
           }
@@ -1559,8 +1559,8 @@ async function confirmAndRun() {
 
     } catch(e) {
       migLog('err', '✗ ' + vinName + ': ' + e.message);
-      document.getElementById('mig-spyne-'+d.idx).innerHTML = '<span class="badge error">✗ Err</span>';
-      document.getElementById('mig-status-'+d.idx).innerHTML = '<span class="badge error">✗ Error</span>';
+      var spEl3 = document.getElementById('mig-spyne-'+d.idx); if (spEl3) spEl3.innerHTML = '<span class="badge error">✗ Err</span>';
+      var stEl3 = document.getElementById('mig-status-'+d.idx); if (stEl3) stEl3.innerHTML = '<span class="badge error">✗ Error</span>';
       var errEl = document.getElementById('mig-stat-errors');
       if (errEl) errEl.textContent = parseInt(errEl.textContent||0) + 1;
     }

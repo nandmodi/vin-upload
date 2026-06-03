@@ -413,6 +413,7 @@ async function fetchAllTokens() {
     log('blue', `Processing enterprise: ${ent}`);
 
     // Open Spyne with this enterprise's URL to switch session
+    // Use switch-enterprise URL — triggers localStorage update with new enterprise token
     const spyneUrl = `https://console.spyne.ai/developer-hub?enterprise_id=${encodeURIComponent(ent)}&team_id=${encodeURIComponent(firstTeam)}`;
     const entToken = await getEnterpriseToken(spyneUrl, ent);
 
@@ -433,108 +434,16 @@ async function fetchAllTokens() {
 }
 
 function getEnterpriseToken(spyneUrl, ent) {
+  // Lambda (generate-token) now handles enterprise switching automatically
+  // Just pass current loginToken — Lambda calls Spyne switch-enterprise API if needed
   return new Promise((resolve) => {
-    log('info', `Switching to enterprise ${ent}…`);
-
-    // Step 1: Try current localStorage — if already on this enterprise, use directly
+    log('info', 'Getting token for enterprise ' + ent + '…');
+    var uid = loginUserId;
     try {
-      const tok = localStorage.getItem('defaultBearerToken');
-      if (tok) {
-        const rawTok = tok.replace(/^Bearer /i, '');
-        const parts  = rawTok.split('.');
-        if (parts.length >= 2) {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-          const tokEnt  = payload.enterprise_id || payload.enterpriseId || '';
-          if (tokEnt === ent) {
-            // Already on this enterprise — use current token directly
-            const ud  = localStorage.getItem('userDetails');
-            const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : loginUserId;
-            log('ok', `Already on enterprise ${ent} ✅`);
-            resolve({ tok: rawTok, uid: uid || loginUserId });
-            return;
-          }
-        }
-      }
+      var ud = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      uid = ud.userId || ud._id || loginUserId;
     } catch(e) {}
-
-    // Step 2: Open popup to switch enterprise, then poll localStorage for new token
-    const popup = window.open(spyneUrl, `ent_${ent}`, 'width=400,height=500,left=100,top=100');
-    if (!popup) {
-      log('warn', 'Popup blocked — using loginToken for ' + ent);
-      resolve({ tok: loginToken.replace(/^Bearer /i, ''), uid: loginUserId });
-      return;
-    }
-
-    log('info', `Popup opened — waiting for enterprise ${ent} to load…`);
-    let attempts = 0;
-    let done = false;
-
-    const check = setInterval(() => {
-      attempts++;
-      if (popup.closed && !done) {
-        clearInterval(check);
-        done = true;
-        // Popup closed — read current localStorage (user may have switched)
-        try {
-          const tok = localStorage.getItem('defaultBearerToken') || '';
-          const rawTok = tok.replace(/^Bearer /i, '');
-          const ud  = localStorage.getItem('userDetails');
-          const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : loginUserId;
-          resolve({ tok: rawTok || loginToken, uid });
-        } catch(e) {
-          resolve({ tok: loginToken, uid: loginUserId });
-        }
-        return;
-      }
-
-      // Poll popup localStorage every 500ms
-      try {
-        const tok = popup.localStorage.getItem('defaultBearerToken');
-        if (tok && !done) {
-          const rawTok = tok.replace(/^Bearer /i, '');
-          const parts  = rawTok.split('.');
-          if (parts.length >= 2) {
-            const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
-            const tokEnt  = payload.enterprise_id || payload.enterpriseId || '';
-            if (tokEnt === ent) {
-              // Enterprise switched successfully
-              done = true;
-              clearInterval(check);
-              try { popup.close(); } catch(e) {}
-              const ud  = popup.localStorage.getItem('userDetails') || '{}';
-              const uid = JSON.parse(ud).userId || JSON.parse(ud)._id || loginUserId;
-              log('ok', `Enterprise ${ent} token confirmed ✅`);
-              resolve({ tok: rawTok, uid });
-              return;
-            }
-          }
-        }
-      } catch(e) { /* cross-origin or not loaded yet */ }
-
-      if (attempts >= 24 && !done) { // 12 seconds max
-        done = true;
-        clearInterval(check);
-        try { popup.close(); } catch(e) {}
-        // On timeout — try localStorage one more time
-        try {
-          const freshTok = localStorage.getItem('defaultBearerToken') || '';
-          const rawFresh = freshTok.replace(/^Bearer /i, '');
-          if (rawFresh) {
-            const fp = JSON.parse(atob(rawFresh.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-            const freshEnt = fp.enterprise_id || fp.enterpriseId || '';
-            if (freshEnt === ent) {
-              log('ok', 'Timeout but localStorage has correct enterprise ' + ent + ' ✅');
-              const ud2 = localStorage.getItem('userDetails') || '{}';
-              const uid2 = JSON.parse(ud2).userId || JSON.parse(ud2)._id || loginUserId;
-              resolve({ tok: rawFresh, uid: uid2 });
-              return;
-            }
-          }
-        } catch(le) {}
-        log('warn', 'Timeout for ' + ent + ' — enterprise not switched. Open console.spyne.ai, switch to ' + ent + ', then retry.');
-        resolve({ tok: null, uid: loginUserId });
-      }
-    }, 500);
+    resolve({ tok: loginToken, uid: uid });
   });
 }
 
@@ -1431,7 +1340,7 @@ async function confirmAndRun() {
     var firstTeam = comboMap[combos[0]].team;
     migLog('blue', 'Getting token for enterprise: ' + ent);
     var spyneUrl = 'https://console.spyne.ai/developer-hub?enterprise_id=' 
-                 + encodeURIComponent(ent) + '&team_id=' + encodeURIComponent(firstTeam);
+                 + encodeURIComponent(ent) + '&team_id=' + encodeURIComponent(firstTeam) + '';
     var entResult = await getEnterpriseToken(spyneUrl, ent);
     if (!entResult) {
       migLog('err', 'Could not get token for ' + ent);

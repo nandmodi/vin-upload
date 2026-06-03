@@ -522,16 +522,20 @@ async function fetchBgId(comboKey, tok) {
 
   const token = tok || loginToken;
   if (!token) { log('err', `[${comboKey}] No token for bg_id fetch`); return; }
+  // Ensure token has Bearer prefix — get-bg-id Lambda passes it to Spyne API
+  const bearerToken = token.startsWith('Bearer ') ? token : 'Bearer ' + token;
   log('info', `[${combo.ent}/${combo.team}] Fetching bg_id…`);
+  migLog && migLog('info', '  Fetching bg_id for ' + combo.ent + '/' + combo.team);
   if (stBg) { stBg.textContent = 'Fetching bg…'; stBg.style.color = 'var(--amber)'; }
 
   try {
     const r = await fetch(API_BASE + '/get-bg-id', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enterpriseId: combo.ent, teamId: combo.team, loginToken: token })
+      body: JSON.stringify({ enterpriseId: combo.ent, teamId: combo.team, loginToken: bearerToken })
     });
     const d = await r.json();
+    log('info', `[${combo.ent}/${combo.team}] bg_id response: ${JSON.stringify(d)}`);
     if (!r.ok) throw new Error(d.error || 'API failed');
 
     const defaultBg = d.defaultBackground;
@@ -1353,11 +1357,11 @@ async function confirmAndRun() {
     for (var ci = 0; ci < combos.length; ci++) {
       await generateTokenViaLambda(combos[ci], entResult.tok, entResult.uid);
     }
-    // Fetch bg_id using the enterprise login token (entResult.tok)
-    // This is the token for the correct enterprise — same as how original
-    // runPipeline calls fetchBgId(ck, loginToken) when already on that enterprise
+    // Fetch bg_id using loginToken directly — get-bg-id Lambda needs
+    // the raw login token (Bearer authKey format), not the generated JWT
+    // This is exactly what original runPipeline does: fetchBgId(ck, loginToken)
     for (var ci = 0; ci < combos.length; ci++) {
-      await fetchBgId(combos[ci], entResult.tok);
+      await fetchBgId(combos[ci], loginToken);
     }
   }
 

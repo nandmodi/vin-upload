@@ -463,23 +463,54 @@ function getEnterpriseToken(spyneUrl, ent) {
       return;
     }
 
-    // Wait for popup to load (gives Spyne time to switch enterprise context)
-    // We cannot read popup.localStorage cross-origin — so we just wait then use loginToken.
-    // The Lambda /generate-token call uses loginToken + enterpriseId to mint the right token.
+    // Wait for popup to load and enterprise to switch
+    // After waiting, try to read token from popup.localStorage (same-origin if on console.spyne.ai)
     let attempts = 0;
+    let done = false;
     const check = setInterval(() => {
       attempts++;
       if (popup.closed) {
         clearInterval(check);
-        log('warn', `Popup closed early for ${ent} — using loginToken`);
-        resolve({ tok: loginToken, uid: loginUserId });
+        if (!done) { done = true; resolve({ tok: loginToken, uid: loginUserId }); }
         return;
       }
-      if (attempts >= 16) { // 8 seconds — enough for page load and enterprise switch
+      // Try reading popup localStorage — works if popup is same-origin (console.spyne.ai)
+      try {
+        const tok = popup.localStorage.getItem('defaultBearerToken');
+        const ud  = popup.localStorage.getItem('userDetails');
+        const uid = ud ? (JSON.parse(ud).userId || JSON.parse(ud)._id || '') : loginUserId;
+        if (tok && !done) {
+          // Verify the token is actually for the correct enterprise
+          // by checking enterprise_id in the token payload
+          try {
+            const rawTok = tok.replace(/^Bearer\s+/i, '');
+            const parts  = rawTok.split('.');
+            if (parts.length >= 2) {
+              const payload = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+              const tokEnt  = payload.enterprise_id || payload.enterpriseId || '';
+              if (tokEnt === ent && attempts >= 4) {
+                // Token is for correct enterprise and page has loaded
+                done = true;
+                clearInterval(check);
+                try { popup.close(); } catch(e2) {}
+                log('ok', `Got correct token for enterprise ${ent} ✅`);
+                resolve({ tok: rawTok, uid: uid || loginUserId });
+                return;
+              }
+            }
+          } catch(pe) {
+            // Token decode failed — wait more
+          }
+        }
+      } catch(e) {
+        // Cross-origin — cannot read popup.localStorage, fall through to timeout
+      }
+      if (attempts >= 16 && !done) { // 8 seconds timeout
+        done = true;
         clearInterval(check);
         try { popup.close(); } catch(e) {}
-        log('ok', `Enterprise ${ent} ready — generating token via Lambda`);
-        resolve({ tok: loginToken, uid: loginUserId });
+        log('warn', `Timeout for ${ent} — using current loginToken`);
+        resolve({ tok: loginToken.replace(/^Bearer\s+/i, ''), uid: loginUserId });
       }
     }, 500);
   });

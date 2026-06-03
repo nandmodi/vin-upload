@@ -515,8 +515,24 @@ function getEnterpriseToken(spyneUrl, ent) {
         done = true;
         clearInterval(check);
         try { popup.close(); } catch(e) {}
-        log('warn', `Timeout for ${ent} — using loginToken`);
-        resolve({ tok: loginToken.replace(/^Bearer /i, ''), uid: loginUserId });
+        // On timeout — try localStorage one more time
+        try {
+          const freshTok = localStorage.getItem('defaultBearerToken') || '';
+          const rawFresh = freshTok.replace(/^Bearer /i, '');
+          if (rawFresh) {
+            const fp = JSON.parse(atob(rawFresh.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+            const freshEnt = fp.enterprise_id || fp.enterpriseId || '';
+            if (freshEnt === ent) {
+              log('ok', 'Timeout but localStorage has correct enterprise ' + ent + ' ✅');
+              const ud2 = localStorage.getItem('userDetails') || '{}';
+              const uid2 = JSON.parse(ud2).userId || JSON.parse(ud2)._id || loginUserId;
+              resolve({ tok: rawFresh, uid: uid2 });
+              return;
+            }
+          }
+        } catch(le) {}
+        log('warn', 'Timeout for ' + ent + ' — enterprise not switched. Open console.spyne.ai, switch to ' + ent + ', then retry.');
+        resolve({ tok: null, uid: loginUserId });
       }
     }, 500);
   });
@@ -534,8 +550,8 @@ async function generateTokenViaLambda(comboKey, tok, uid) {
   const stEl  = document.getElementById('st-'+id);
   if (stEl) { stEl.textContent='Fetching…'; stEl.className='cs loading'; }
   try {
-    // Always strip "Bearer " before sending to Lambda
-    const cleanTok = tok ? tok.replace(/^Bearer\s+/i, '') : '';
+    if (!tok) throw new Error('No enterprise token — switch to enterprise ' + combo.ent + ' in console.spyne.ai first');
+    const cleanTok = tok.replace(/^Bearer\s+/i, '');
     const r = await fetch(API_BASE + '/generate-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

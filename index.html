@@ -601,7 +601,7 @@ function parseFolder(files) {
     const [root,ent,team,vin]=parts;
     const vk=`${ent}/${team}/${vin}`, ck=`${ent}/${team}`;
     if (!vinMap[vk])    vinMap[vk]    = {ent,team,vin,files:[]};
-    if (!comboMap[ck])  comboMap[ck]  = {ent,team,bgId:'',token:null};
+    if (!comboMap[ck])  comboMap[ck]  = {ent,team,bgId:'',token:null,enableSpin:false,enableVideo:false};
     vinMap[vk].files.push({file:f, s3Key:parts.slice(1).join('/'), contentType:f.type||'image/jpeg'});
   }
   const vks=Object.keys(vinMap), cks=Object.keys(comboMap);
@@ -645,6 +645,20 @@ function renderCombos(keys) {
         <input type="text" id="bg-${id}" placeholder="Fetching…"
           oninput="comboMap['${k}'].bgId=this.value.trim();" />
         <span id="stbg-${id}" style="font-size:10px;color:var(--hint);white-space:nowrap;"></span>
+      </div>
+      <div style="display:flex;gap:16px;padding:6px 0 2px 0;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);">
+          <input type="checkbox" id="spin-${id}"
+            onchange="comboMap['${k}'].enableSpin=this.checked;"
+            style="accent-color:var(--green);width:13px;height:13px;cursor:pointer;">
+          360
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);" title="Requires video files">
+          <input type="checkbox" id="video-${id}"
+            onchange="comboMap['${k}'].enableVideo=this.checked;"
+            style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer;">
+          Video
+        </label>
       </div>`;
     wrap.appendChild(c);
   });
@@ -664,6 +678,10 @@ function renderCombos(keys) {
       const stEl = document.getElementById('st-'+id);
       if (stEl) { stEl.textContent = '✓ Token ready'; stEl.className = 'cs ok'; }
     }
+    const spinEl  = document.getElementById('spin-'+id);
+    const videoEl = document.getElementById('video-'+id);
+    if (spinEl  && comboMap[k]) spinEl.checked  = comboMap[k].enableSpin  || false;
+    if (videoEl && comboMap[k]) videoEl.checked = comboMap[k].enableVideo || false;
   });
 }
 
@@ -870,9 +888,15 @@ async function uploadFile(fi){
 async function callSpyne(vinData,imageUrls,bgId,token){
   // Deduplicate image URLs
   const uniqueUrls = [...new Set(imageUrls)];
+  // Get spin/video flags from comboMap
+  const ck = vinData.ent+'/'+vinData.team;
+  const enableSpin  = (comboMap[ck] && comboMap[ck].enableSpin)  || false;
+  const enableVideo = (comboMap[ck] && comboMap[ck].enableVideo) || false;
+  if (enableSpin)  log('info', `[${vinData.vin}] 360 Spin enabled`);
+  if (enableVideo) log('info', `[${vinData.vin}] Feature Video enabled`);
   const res=await fetch(API_BASE+'/spyne-process',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token})
+    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token,enableSpin,enableVideo})
   });
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
@@ -1498,6 +1522,11 @@ async function confirmAndRun() {
       // Add 30s timeout to prevent hanging
       var spyneController = new AbortController();
       var spyneTimeout = setTimeout(function(){ spyneController.abort(); }, 30000);
+      // Auto-enable spin for migration if ≥8 exterior images
+      var exteriorCount = d.images.filter(function(img){ return img.category === 'Exterior'; }).length;
+      var exteriorUrls  = d.images.filter(function(img){ return img.category === 'Exterior'; }).map(function(img){ return img.url; });
+      var migEnableSpin = exteriorCount >= 8;
+      if (migEnableSpin) migLog('info', '  360 Spin enabled (' + exteriorCount + ' exterior images)');
       var spyneResp = await fetch(API_BASE + '/spyne-process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1505,9 +1534,11 @@ async function confirmAndRun() {
         body: JSON.stringify({
           vin:          vinName,
           teamId:       newTeam,
-          imageUrls:    imageUrls,
+          imageUrls:    migEnableSpin ? exteriorUrls : imageUrls,
           backgroundId: bgId,
-          spyneToken:   entToken
+          spyneToken:   entToken,
+          enableSpin:   migEnableSpin,
+          enableVideo:  false
         })
       });
       clearTimeout(spyneTimeout);
@@ -1631,7 +1662,11 @@ function downloadSampleCSV() {
   var BOM = '\uFEFF';
   var rows = [
     ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId'],
-   
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57'],
+    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68'],
   ];
   var csv = BOM + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');

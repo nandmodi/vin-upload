@@ -1671,11 +1671,6 @@ function downloadSampleCSV() {
   var BOM = '\uFEFF';
   var rows = [
     ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId', 'enable_360', 'enable_video'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57', 'false', 'false'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57', 'true',  'false'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68', 'false', 'true'],
-    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57', 'true',  'true'],
-    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68', 'false', 'false'],
   ];
   var csv = BOM + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');

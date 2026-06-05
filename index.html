@@ -334,7 +334,7 @@
       <thead>
         <tr>
           <th>Enterprise</th><th>Team</th><th>VIN</th>
-          <th>BG ID</th><th>Images</th><th>Spyne</th><th>Result</th>
+          <th>BG ID</th><th>Images</th><th>360</th><th>Video</th><th>Spyne</th><th>Result</th>
         </tr>
       </thead>
       <tbody id="migBody"></tbody>
@@ -1105,6 +1105,9 @@ function handleMigCSV(file) {
     var rows = raw.map(function(r) {
       var out = {};
       Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s\-]/g,'_')] = r[k]; });
+      // Parse optional 360/video columns
+      out.enableSpin  = (out.enable_360   || '').toLowerCase() === 'true';
+      out.enableVideo = (out.enable_video || '').toLowerCase() === 'true';
       return out;
     });
 
@@ -1118,6 +1121,10 @@ function handleMigCSV(file) {
     migRows = rows;
     migData = [];
     renderMigTable(rows);
+    rows.forEach(function(r, i) {
+      if (r.enableSpin)  { var c = document.getElementById('mig-spin-'+i);  if (c) c.checked = true; }
+      if (r.enableVideo) { var c = document.getElementById('mig-video-'+i); if (c) c.checked = true; }
+    });
 
     // Clear folder upload if CSV selected — mutually exclusive
     if (Object.keys(vinMap).length) {
@@ -1177,6 +1184,8 @@ function renderMigTable(rows) {
       '<td style="font-family:var(--mono);font-size:12px;">'+esc(r.vin_name)+'</td>' +
       '<td id="mig-bgid-'+i+'" style="color:var(--hint);font-family:var(--mono);font-size:12px;">—</td>' +
       '<td id="mig-imgs-'+i+'" style="color:var(--hint)">—</td>' +
+      '<td style="text-align:center;"><input type="checkbox" id="mig-spin-'+i+'" style="accent-color:var(--green);width:13px;height:13px;cursor:pointer;" onchange="if(migRows['+i+'])migRows['+i+'].enableSpin=this.checked"></td>' +
+      '<td style="text-align:center;"><input type="checkbox" id="mig-video-'+i+'" style="accent-color:var(--blue);width:13px;height:13px;cursor:pointer;" onchange="if(migRows['+i+'])migRows['+i+'].enableVideo=this.checked"></td>' +
       '<td id="mig-spyne-'+i+'"><span class="badge pending">Pending</span></td>' +
       '<td id="mig-status-'+i+'">—</td>';
     tb.appendChild(tr);
@@ -1526,7 +1535,7 @@ async function confirmAndRun() {
       var exteriorCount = d.images.filter(function(img){ return img.category === 'Exterior'; }).length;
       var exteriorUrls  = d.images.filter(function(img){ return img.category === 'Exterior'; }).map(function(img){ return img.url; });
       var migEnableSpin = exteriorCount >= 8;
-      if (migEnableSpin) migLog('info', '  360 Spin enabled (' + exteriorCount + ' exterior images)');
+      if (migEnableSpin) migLog('info', '  ' + exteriorCount + ' exterior images found (360 available if checked)');
       var spyneResp = await fetch(API_BASE + '/spyne-process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1537,8 +1546,8 @@ async function confirmAndRun() {
           imageUrls:    migEnableSpin ? exteriorUrls : imageUrls,
           backgroundId: bgId,
           spyneToken:   entToken,
-          enableSpin:   migEnableSpin,
-          enableVideo:  false
+          enableSpin:   (migRows[d.idx] && migRows[d.idx].enableSpin) || false,
+          enableVideo:  (migRows[d.idx] && migRows[d.idx].enableVideo) || false
         })
       });
       clearTimeout(spyneTimeout);
@@ -1661,12 +1670,12 @@ function downloadSampleCSV() {
   // BOM prefix ensures Excel opens CSV with correct encoding
   var BOM = '\uFEFF';
   var rows = [
-    ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57'],
-    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68'],
-    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57'],
-    ['a622bce4c', '068e1a635', 'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68'],
+    ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId', 'enable_360', 'enable_video'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57', 'false', 'false'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57', 'true',  'false'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68', 'false', 'true'],
+    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57', 'true',  'true'],
+    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68', 'false', 'false'],
   ];
   var csv = BOM + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');

@@ -1105,9 +1105,9 @@ function handleMigCSV(file) {
     var rows = raw.map(function(r) {
       var out = {};
       Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s\-]/g,'_')] = r[k]; });
-      // Parse optional 360/video columns
-      out.enableSpin  = (out.enable_360   || '').toLowerCase() === 'true';
-      out.enableVideo = (out.enable_video || '').toLowerCase() === 'true';
+      // Parse optional 360/video columns — convert to string first (handles boolean/number values)
+      out.enableSpin  = String(out.enable_360   || '').toLowerCase() === 'true';
+      out.enableVideo = String(out.enable_video || '').toLowerCase() === 'true';
       return out;
     });
 

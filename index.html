@@ -530,6 +530,7 @@ async function fetchBgId(comboKey, tok) {
       }
       if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
       log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${defaultBg}`);
+      combo.featureVideoConfig = d.featureVideoConfig || null;
 
     } else if (teamBgs.length === 1) {
       // Only one bg — use it
@@ -541,6 +542,7 @@ async function fetchBgId(comboKey, tok) {
       }
       if (stBg) { stBg.textContent = '✓ Auto bg_id'; stBg.style.color = 'var(--green)'; }
       log('ok', `[${combo.ent}/${combo.team}] bg_id auto-set: ${bgId}`);
+      combo.featureVideoConfig = d.featureVideoConfig || null;
 
     } else if (teamBgs.length > 1) {
       // Multiple bgs — show dropdown
@@ -896,7 +898,7 @@ async function callSpyne(vinData,imageUrls,bgId,token){
   if (enableVideo) log('info', `[${vinData.vin}] Feature Video enabled`);
   const res=await fetch(API_BASE+'/spyne-process',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token,enableSpin,enableVideo})
+    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token,enableSpin,enableVideo,featureVideoConfig:(_combo||comboMap[vinData.ent+'/'+vinData.team])?.featureVideoConfig||{}})
   });
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
@@ -1278,7 +1280,7 @@ async function migFetchImages() {
   migData = migRows.map(function(r, i) {
     var qk = r.old_enterprise_id + '||' + r.old_teamid + '||' + r.vin_name;
     var qEntry = queryMap[qk] || {};
-    return { row: r, idx: i, images: qEntry.images || [], dealerVinId: qEntry.dealerVinId || '' };
+    return { row: r, idx: i, images: qEntry.images || [], dealerVinId: qEntry.dealerVinId || '', vehicleData: qEntry.vehicleData || {} };
   });
 
   var withImages = migData.filter(function(d) { return d.images.length > 0; }).length;
@@ -1465,6 +1467,8 @@ async function confirmAndRun() {
           if (stBg2) { stBg2.textContent = 'Enter manually'; stBg2.style.color = 'var(--hint)'; }
           migLog('warn', '  No bg_id found for ' + combo2.ent + '/' + combo2.team + ' — enter manually');
         }
+        // Store featureVideoConfig for video processing
+        combo2.featureVideoConfig = bgD.featureVideoConfig || null;
       } catch(bgErr) {
         migLog('err', '  bg_id fetch error: ' + bgErr.message);
       }
@@ -1552,8 +1556,10 @@ async function confirmAndRun() {
           imageUrls:    migEnableSpin ? exteriorUrls : imageUrls,
           backgroundId: bgId,
           spyneToken:   entToken,
-          enableSpin:   (migRows[d.idx] && migRows[d.idx].enableSpin) || false,
-          enableVideo:  (migRows[d.idx] && migRows[d.idx].enableVideo) || false
+          enableSpin:          (migRows[d.idx] && migRows[d.idx].enableSpin) || false,
+          enableVideo:         (migRows[d.idx] && migRows[d.idx].enableVideo) || false,
+          vehicleData:         d.vehicleData || {},
+          featureVideoConfig:  (comboMap[d.row.new_enterprise_id+'/'+d.row.new_teamid] || {}).featureVideoConfig || {}
         })
       });
       clearTimeout(spyneTimeout);

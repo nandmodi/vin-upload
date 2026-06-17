@@ -163,6 +163,8 @@
   /* Capsule active states */
   #cap-folder.active{background:var(--blue);color:#fff;}
   #cap-folder.loaded{background:var(--green-dim);color:var(--green);}
+  #cap-url.active{background:var(--blue);color:#fff;}
+  #cap-url.loaded{background:var(--green-dim);color:var(--green);}
   #cap-csv.active{background:var(--blue);color:#fff;}
   #cap-csv.loaded{background:var(--green-dim);color:var(--green);}
   /* Migration */
@@ -1101,7 +1103,7 @@ function resetURLCSV() {
   var el = document.getElementById('cap-url');
   var elInfo = document.getElementById('cap-url-info');
   var elTxt = document.getElementById('cap-url-txt');
-  if (el) { el.style.background = ''; el.style.color = ''; }
+  if (el) { el.classList.remove('loaded', 'active'); }
   if (elInfo) elInfo.style.display = 'none';
   if (elTxt) elTxt.textContent = 'Upload CSV';
   var inp = document.getElementById('csvURLInput');
@@ -1157,7 +1159,7 @@ function handleURLCSV(file) {
       var capInfo = document.getElementById('cap-url-info');
       var capDetail = document.getElementById('cap-url-detail');
       var capTxt = document.getElementById('cap-url-txt');
-      if (capEl) { capEl.style.background = 'rgba(62,207,142,0.12)'; capEl.style.color = 'var(--green)'; }
+      if (capEl) { capEl.classList.add('loaded'); }
       if (capDetail) capDetail.textContent = '✓ ' + urlRows.length + ' rows · ' + file.name;
       if (capInfo) capInfo.style.display = 'flex';
 
@@ -1178,7 +1180,12 @@ function handleURLCSV(file) {
       document.getElementById('vinTable').style.display = 'table';
       document.getElementById('tblSub').textContent = urlRows.length + ' VINs from CSV · click Run Pipeline';
       updateStats();
-      fetchAllTokens();
+      fetchAllTokens().then(function() {
+        // Fetch bg_ids after tokens are ready
+        Object.keys(comboMap).forEach(function(ck) {
+          fetchBgId(ck, loginToken);
+        });
+      });
 
     } catch(err) { alert('Error reading file: ' + err.message); }
   };

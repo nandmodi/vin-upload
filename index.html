@@ -204,11 +204,13 @@
     <div class="s-title">Spyne Login</div>
     <div class="field">
       <label>Login Token</label>
-      <input type="password" id="loginTokenInput" placeholder="Bearer eyJ..." />
+      <input type="password" id="loginTokenInput" placeholder="Bearer eyJ..." oninput="document.getElementById('tokenBtns').style.display=this.value?'block':'none'" />
       <div class="hint muted" id="loginHint">Paste from Spyne → F12 → Console:<br/>localStorage.getItem('defaultBearerToken')</div>
     </div>
-    <button class="btn primary full" onclick="saveLoginToken()">✓ Save Token</button>
-    <button class="btn full" onclick="clearLoginToken()" style="color:var(--red);border-color:rgba(242,87,87,0.2);background:linear-gradient(180deg,rgba(242,87,87,0.08) 0%,rgba(242,87,87,0.04) 100%);">✕ Clear Token</button>
+    <div id="tokenBtns" style="display:none;">
+      <button class="btn primary full" onclick="saveLoginToken()" style="margin-bottom:6px;">✓ Save Token</button>
+      <button class="btn full" onclick="clearLoginToken()" style="color:var(--red);border-color:rgba(242,87,87,0.2);background:linear-gradient(180deg,rgba(242,87,87,0.08) 0%,rgba(242,87,87,0.04) 100%);">✕ Clear Token</button>
+    </div>
   </div>
 
   <!-- Folder + CSV capsule -->
@@ -386,6 +388,7 @@ function saveLoginToken() {
   if (!val) { alert('Please paste your Spyne login token'); return; }
   var rawJwt = val.replace(/^Bearer\s+/i, '');
   applyToken(rawJwt, '');
+  document.getElementById('tokenBtns').style.display = 'none';
   log('ok', 'Token saved manually · userId: ' + (loginUserId || 'unknown'));
 }
 
@@ -393,7 +396,8 @@ function clearLoginToken() {
   loginToken = null; loginUserId = null;
 
   document.getElementById('loginTokenInput').value = '';
-  document.getElementById('loginHint').textContent = 'Token cleared';
+  document.getElementById('tokenBtns').style.display = 'none';
+  document.getElementById('loginHint').textContent = 'Token cleared — paste new token to login';
   document.getElementById('loginHint').className = 'hint muted';
   document.getElementById('spyneDot').style.color = 'var(--hint)';
   log('info', 'Login token cleared');

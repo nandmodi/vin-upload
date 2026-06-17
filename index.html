@@ -1825,22 +1825,23 @@ function resetMig() {
 }
 
 function downloadSampleURLCSV() {
-  var BOM = '﻿';
   var rows = [
     ['vin', 'enterprise_id', 'team_id', 'imageUrls[0]', 'imageUrls[1]', 'imageUrls[2]'],
     ['3C6JR6AGXJG291586', 'b733cdf5d', '70980f4dcd', 'https://content.homenetiol.com/img1.jpg', 'https://content.homenetiol.com/img2.jpg', 'https://content.homenetiol.com/img3.jpg'],
     ['1N6ED1FK8TN664768', 'b733cdf5d', '70980f4dcd', 'https://content.homenetiol.com/img4.jpg', 'https://content.homenetiol.com/img5.jpg', ''],
     ['1GT49REY2LF185793', 'b733cdf5d', 'a2a615649f', 'https://content.homenetiol.com/img6.jpg', 'https://content.homenetiol.com/img7.jpg', 'https://content.homenetiol.com/img8.jpg'],
   ];
-  var csv = BOM + rows.map(function(r) {
+  var csv = '﻿' + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
   }).join('
 ');
   var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
-  a.href = url; a.download = 'sample_url_upload.csv'; a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  a.href = url; a.download = 'sample_url_upload.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(url); }, 500);
 }
 
 function downloadSampleCSV() {

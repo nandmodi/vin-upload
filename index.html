@@ -218,21 +218,21 @@
   <div class="s-section">
     <div class="s-title">Select Source</div>
     <!-- Capsule triggers file inputs appended to body on page load -->
-    <div style="display:flex;border:1px solid var(--border2);border-radius:99px;overflow:hidden;height:44px;background:var(--bg);">
+    <div style="display:flex;border:1px solid var(--border2);border-radius:12px;overflow:hidden;height:40px;background:var(--bg);">
       <!-- Upload Folder -->
-      <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
+      <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title="root / enterprise / team / VIN / images">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
         <span id="cap-folder-txt">Upload Folder</span>
       </div>
       <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
       <!-- Upload CSV (URL-based) -->
-      <div id="cap-url" onclick="triggerURLCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv with vin, enterprise_id, team_id, imageUrls">
+      <div id="cap-url" onclick="triggerURLCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title=".csv with vin, enterprise_id, team_id, imageUrls">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         <span id="cap-url-txt">Upload CSV</span>
       </div>
       <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
       <!-- Migration -->
-      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="Migration CSV">
+      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title="Migration CSV">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-5-6z"/><polyline points="9 3 9 9 19 9"/></svg>
         <span id="cap-csv-txt">Migration</span>
       </div>

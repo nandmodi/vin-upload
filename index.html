@@ -874,12 +874,19 @@ async function runPipeline() {
       continue;
     }
 
-    // Submit all VINs for this enterprise
+    // Submit all VINs for this enterprise — generate fresh token per VIN
     for (const k of entVinKeys) {
       if(!results[k].s3Urls.length){results[k].spyneStatus='error';updateRow(k);continue;}
       results[k].spyneStatus='running';updateRow(k);
       const v=vinMap[k],ck=`${v.ent}/${v.team}`;
       try{
+        // Generate fresh token right before submit — prevents invalidation across teams
+        const freshTok = await fetch(API_BASE+'/generate-token',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({loginToken:loginToken,enterpriseId:v.ent,teamId:v.team,userId:loginUserId})
+        });
+        const freshTokData = await freshTok.json();
+        if (freshTokData.token) comboMap[ck].token = freshTokData.token;
         const resp=await callSpyne(v,results[k].s3Urls,comboMap[ck]?.bgId,comboMap[ck]?.token);
         results[k].spyneStatus='ok';
         results[k].dealerVinID=resp?.data?.dealerVinID||'';

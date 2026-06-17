@@ -1831,10 +1831,9 @@ function downloadSampleURLCSV() {
     ['1N6ED1FK8TN664768', 'b733cdf5d', '70980f4dcd', 'https://content.homenetiol.com/img4.jpg', 'https://content.homenetiol.com/img5.jpg', ''],
     ['1GT49REY2LF185793', 'b733cdf5d', 'a2a615649f', 'https://content.homenetiol.com/img6.jpg', 'https://content.homenetiol.com/img7.jpg', 'https://content.homenetiol.com/img8.jpg'],
   ];
-  var csv = '﻿' + rows.map(function(r) {
+  var csv = '\uFEFF' + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
-  }).join('
-');
+  }).join('\r\n');
   var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');

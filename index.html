@@ -1180,13 +1180,13 @@ function handleURLCSV(file) {
       // Highlight Upload CSV button
       var capEl = document.getElementById('cap-url');
       if (capEl) { capEl.className=''; capEl.style.cssText += ';background:rgba(62,207,142,0.25);color:#3ecf8e;border-bottom:2px solid #3ecf8e;'; }
-      // Enable Run Pipeline button
-      document.getElementById('runBtn').disabled = false;
       fetchAllTokens().then(function() {
         // Fetch bg_ids after tokens are ready
         Object.keys(comboMap).forEach(function(ck) {
           fetchBgId(ck, loginToken);
         });
+        // Enable Run Pipeline AFTER tokens ready
+        document.getElementById('runBtn').disabled = false;
       });
 
     } catch(err) { alert('Error reading file: ' + err.message); }

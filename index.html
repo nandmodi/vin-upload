@@ -234,22 +234,10 @@
         <span id="cap-csv-txt">Migration</span>
       </div>
     </div>
-    <!-- Sample CSV download hint -->
-    <div style="margin-top:7px;display:flex;align-items:center;justify-content:flex-end;">
-      <button onclick="downloadSampleCSV()" title="Download sample CSV template" style="display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 4px;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-        Sample CSV
-      </button>
-    </div>
+    <!-- Status rows for each source -->
     <div id="cap-folder-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
       <span id="cap-folder-detail"></span>
       <button class="btn sm" onclick="resetAll()" style="font-size:10px;padding:2px 8px;">✕</button>
-    </div>
-    <div style="margin-top:7px;display:flex;align-items:center;justify-content:flex-end;">
-      <button onclick="downloadSampleURLCSV()" title="Download sample URL CSV template" style="display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 4px;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-        Sample CSV
-      </button>
     </div>
     <div id="cap-url-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
       <span id="cap-url-detail"></span>
@@ -257,6 +245,17 @@
     </div>
     <div id="cap-csv-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);">
       <span id="cap-csv-detail"></span>
+    </div>
+    <!-- Sample CSV hints — shown below each active source -->
+    <div style="margin-top:6px;display:flex;justify-content:space-between;">
+      <button onclick="downloadSampleURLCSV()" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 0;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'" title="Sample for Upload CSV">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+        ↓ Upload CSV
+      </button>
+      <button onclick="downloadSampleCSV()" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 0;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'" title="Sample for Migration">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+        ↓ Migration
+      </button>
     </div>
   </div>
 
@@ -1829,6 +1828,9 @@ function downloadSampleURLCSV() {
   var BOM = '﻿';
   var rows = [
     ['vin', 'enterprise_id', 'team_id', 'imageUrls[0]', 'imageUrls[1]', 'imageUrls[2]'],
+    ['3C6JR6AGXJG291586', 'b733cdf5d', '70980f4dcd', 'https://content.homenetiol.com/img1.jpg', 'https://content.homenetiol.com/img2.jpg', 'https://content.homenetiol.com/img3.jpg'],
+    ['1N6ED1FK8TN664768', 'b733cdf5d', '70980f4dcd', 'https://content.homenetiol.com/img4.jpg', 'https://content.homenetiol.com/img5.jpg', ''],
+    ['1GT49REY2LF185793', 'b733cdf5d', 'a2a615649f', 'https://content.homenetiol.com/img6.jpg', 'https://content.homenetiol.com/img7.jpg', 'https://content.homenetiol.com/img8.jpg'],
   ];
   var csv = BOM + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');

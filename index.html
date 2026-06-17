@@ -212,16 +212,22 @@
     <div class="s-title">Select Source</div>
     <!-- Capsule triggers file inputs appended to body on page load -->
     <div style="display:flex;border:1px solid var(--border2);border-radius:99px;overflow:hidden;height:44px;background:var(--bg);">
-      <!-- Left: Upload Folder -->
+      <!-- Upload Folder -->
       <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="root / enterprise / team / VIN / images">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
         <span id="cap-folder-txt">Upload Folder</span>
       </div>
       <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
-      <!-- Right: Upload CSV -->
-      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv / .xlsx with migration columns">
+      <!-- Upload CSV (URL-based) -->
+      <div id="cap-url" onclick="triggerURLCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title=".csv with vin, enterprise_id, team_id, imageUrls">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-        <span id="cap-csv-txt">Upload CSV</span>
+        <span id="cap-url-txt">Upload CSV</span>
+      </div>
+      <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
+      <!-- Migration -->
+      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--muted);transition:all .15s;padding:0 10px;" title="Migration CSV">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-5-6z"/><polyline points="9 3 9 9 19 9"/></svg>
+        <span id="cap-csv-txt">Migration</span>
       </div>
     </div>
     <!-- Sample CSV download hint -->
@@ -234,6 +240,10 @@
     <div id="cap-folder-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
       <span id="cap-folder-detail"></span>
       <button class="btn sm" onclick="resetAll()" style="font-size:10px;padding:2px 8px;">✕</button>
+    </div>
+    <div id="cap-url-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);display:flex;align-items:center;justify-content:space-between;">
+      <span id="cap-url-detail"></span>
+      <button class="btn sm" onclick="resetURLCSV()" style="font-size:10px;padding:2px 8px;">✕</button>
     </div>
     <div id="cap-csv-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);">
       <span id="cap-csv-detail"></span>
@@ -577,6 +587,10 @@ function triggerFolderPick() {
   var el = document.getElementById('fi');
   if (el) { el.value = ''; el.click(); }
 }
+function triggerURLCSVPick() {
+  var el = document.getElementById('csvURLInput');
+  if (el) { el.value = ''; el.click(); }
+}
 function triggerCSVPick() {
   var el = document.getElementById('csvMigInput');
   if (el) { el.value = ''; el.click(); }
@@ -700,8 +714,8 @@ function renderTable(keys) {
       <td><span class="tag team">${esc(v.team)}</span></td>
       <td style="font-family:var(--mono);font-size:12px;">${esc(v.vin)}</td>
       <td id="bgc-${id}" style="font-family:var(--mono);font-size:12px;color:var(--muted);">—</td>
-      <td style="color:var(--muted);">${v.files.length}</td>
-      <td id="up-${id}" style="font-size:12px;color:var(--muted);">0/${v.files.length}</td>
+      <td style="color:var(--muted);">${v.urlImages ? v.urlImages.length : v.files.length}</td>
+      <td id="up-${id}" style="font-size:12px;color:var(--muted);">${v.urlImages ? v.urlImages.length+'/'+v.urlImages.length : '0/'+v.files.length}</td>
       <td id="s3-${id}">${mkBadge('pending')}</td>
       <td id="sp-${id}">${mkBadge('pending',true)}</td>
       <td id="dt-${id}" style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</td>`;
@@ -774,6 +788,15 @@ async function runPipeline() {
   for (const k of vinKeys){
     results[k].s3Status='running';updateRow(k);
     const v=vinMap[k];
+    // URL CSV mode — images already hosted, skip S3 upload
+    if (v.urlImages && v.urlImages.length) {
+      results[k].s3Status = 'ok';
+      results[k].s3Urls   = v.urlImages;
+      tUploaded += v.urlImages.length;
+      updateRow(k); updateStats();
+      log('ok', `[${v.vin}] Using ${v.urlImages.length} hosted URLs — S3 skipped`);
+      continue;
+    }
     for (const fi of v.files){
       for(let a=1;a<=3;a++){
         try{
@@ -995,6 +1018,14 @@ window.addEventListener('load', () => {
   csvInput.addEventListener('change', function(){ if(this.files[0]) handleMigCSV(this.files[0]); });
   document.body.appendChild(csvInput);
 
+  // URL CSV input (vin + enterprise + team + imageUrls)
+  var urlCsvInput = document.createElement('input');
+  urlCsvInput.type = 'file'; urlCsvInput.id = 'csvURLInput';
+  urlCsvInput.accept = '.csv,.xlsx,.xls';
+  urlCsvInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  urlCsvInput.addEventListener('change', function(){ if(this.files[0]) handleURLCSV(this.files[0]); });
+  document.body.appendChild(urlCsvInput);
+
 
   // ── Priority 1: Auto-fetch from localStorage (most reliable — always fresh) ──
   try {
@@ -1058,6 +1089,101 @@ function applyToken(rawJwt, uid) {
 
 
 
+
+/* ════════════════════════════════════════════
+   URL CSV UPLOAD — direct URL → spyne-process
+   ════════════════════════════════════════════ */
+
+var urlRows = [];
+
+function resetURLCSV() {
+  urlRows = [];
+  var el = document.getElementById('cap-url');
+  var elInfo = document.getElementById('cap-url-info');
+  var elTxt = document.getElementById('cap-url-txt');
+  if (el) { el.style.background = ''; el.style.color = ''; }
+  if (elInfo) elInfo.style.display = 'none';
+  if (elTxt) elTxt.textContent = 'Upload CSV';
+  var inp = document.getElementById('csvURLInput');
+  if (inp) inp.value = '';
+}
+
+function handleURLCSV(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb   = XLSX.read(data, { type: 'array' });
+      var ws   = wb.Sheets[wb.SheetNames[0]];
+      var raw  = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!raw.length) { alert('CSV is empty'); return; }
+
+      // Normalize headers
+      var rows = raw.map(function(r) {
+        var out = {};
+        Object.keys(r).forEach(function(k) {
+          out[k.toLowerCase().replace(/[\s-]/g, '_')] = r[k];
+        });
+        return out;
+      });
+
+      // Parse rows
+      urlRows = [];
+      rows.forEach(function(r) {
+        var vin  = String(r.vin  || r.vin_name || '').trim();
+        var ent  = String(r.enterprise_id       || '').trim();
+        var team = String(r.team_id             || '').trim();
+        if (!vin || !ent || !team || team === '#N/A') return;
+
+        // Collect imageUrls[0], imageUrls[1], ... columns
+        var imgs = [];
+        Object.keys(r).forEach(function(k) {
+          if (/^imageurls/.test(k)) {
+            var u = String(r[k] || '').trim();
+            if (u && u.startsWith('http')) imgs.push(u);
+          }
+        });
+        if (!imgs.length) return;
+        urlRows.push({ vin: vin, ent: ent, team: team, imageUrls: imgs });
+      });
+
+      if (!urlRows.length) {
+        alert('No valid rows — check vin, enterprise_id, team_id and imageUrls columns');
+        return;
+      }
+
+      // Update capsule
+      var capEl = document.getElementById('cap-url');
+      var capInfo = document.getElementById('cap-url-info');
+      var capDetail = document.getElementById('cap-url-detail');
+      var capTxt = document.getElementById('cap-url-txt');
+      if (capEl) { capEl.style.background = 'rgba(62,207,142,0.12)'; capEl.style.color = 'var(--green)'; }
+      if (capDetail) capDetail.textContent = '✓ ' + urlRows.length + ' rows · ' + file.name;
+      if (capInfo) capInfo.style.display = 'flex';
+
+      // Build comboMap
+      comboMap = {}; vinMap = {}; results = {};
+      urlRows.forEach(function(r) {
+        var ck = r.ent + '/' + r.team;
+        if (!comboMap[ck]) comboMap[ck] = { ent: r.ent, team: r.team, bgId: '', token: null, enableSpin: false, enableVideo: false, featureVideoConfig: null };
+        var vk = ck + '/' + r.vin;
+        vinMap[vk] = { vin: r.vin, ent: r.ent, team: r.team, files: [], urlImages: r.imageUrls };
+        results[vk] = { s3Status: 'url', s3Urls: r.imageUrls, spyneStatus: 'pending', errorMsg: '' };
+      });
+
+      // Render
+      renderCombos(Object.keys(comboMap));
+      renderTable(Object.keys(vinMap));
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('vinTable').style.display = 'table';
+      document.getElementById('tblSub').textContent = urlRows.length + ' VINs from CSV · click Run Pipeline';
+      updateStats();
+      fetchAllTokens();
+
+    } catch(err) { alert('Error reading file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 /* ════════════════════════════════════════════
    MIGRATION — CSV → Metabase → bulk/process
@@ -1683,6 +1809,11 @@ function downloadSampleCSV() {
   var BOM = '\uFEFF';
   var rows = [
     ['Old_Enterprise_id', 'Old_TeamId', 'Vin_name', 'New_Enterprise_id', 'New_TeamId', 'enable_360', 'enable_video'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101479', 'c844def6e', '280g3b8b57', 'false', 'false'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101480', 'c844def6e', '280g3b8b57', 'true',  'false'],
+    ['b733cdf5d', '179f2a7a46', 'KMHLM4DG9TU101481', 'd955eef7f', '391h4c9c68', 'false', 'true'],
+    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201100', 'c844def6e', '280g3b8b57', 'true',  'true'],
+    ['a622bce4c', '068e1a635',  'KMHLM4DG9TU201101', 'd955eef7f', '391h4c9c68', 'false', 'false'],
   ];
   var csv = BOM + rows.map(function(r) {
     return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');

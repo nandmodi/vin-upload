@@ -1177,9 +1177,11 @@ function handleURLCSV(file) {
       document.getElementById('vinTable').style.display = 'table';
       document.getElementById('tblSub').textContent = urlRows.length + ' VINs from CSV · click Run Pipeline';
       updateStats();
-      // Highlight Upload CSV button — same as folder upload
+      // Highlight Upload CSV button
       var capEl = document.getElementById('cap-url');
-      if (capEl) { capEl.className=''; capEl.style.cssText += ';background:var(--green-dim);color:var(--green);'; }
+      if (capEl) { capEl.className=''; capEl.style.cssText += ';background:rgba(62,207,142,0.25);color:#3ecf8e;border-bottom:2px solid #3ecf8e;'; }
+      // Enable Run Pipeline button
+      document.getElementById('runBtn').disabled = false;
       fetchAllTokens().then(function() {
         // Fetch bg_ids after tokens are ready
         Object.keys(comboMap).forEach(function(ck) {

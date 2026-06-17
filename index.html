@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Spyne Auto-Upload Dashboard v2.2</title>
+<title>Spyne Auto-Upload Dashboard v2.3</title>
 <style>
   :root {
     --bg:#0f1117;--surface:#181b23;--surface2:#1e2230;
@@ -999,7 +999,7 @@ function pad(n){return String(n).padStart(2,'0');}
 
 // Force reload if cached old version
 (function() {
-  var v = document.title.includes('v2.2');
+  var v = document.title.includes('v2.3');
   if (!v) { window.location.reload(true); }
 })();
 
@@ -1155,11 +1155,8 @@ function handleURLCSV(file) {
       }
 
       // Update capsule
-      var capEl = document.getElementById('cap-url');
       var capInfo = document.getElementById('cap-url-info');
       var capDetail = document.getElementById('cap-url-detail');
-      var capTxt = document.getElementById('cap-url-txt');
-      if (capEl) { capEl.classList.add('loaded'); }
       if (capDetail) capDetail.textContent = '✓ ' + urlRows.length + ' rows · ' + file.name;
       if (capInfo) capInfo.style.display = 'flex';
 
@@ -1180,6 +1177,9 @@ function handleURLCSV(file) {
       document.getElementById('vinTable').style.display = 'table';
       document.getElementById('tblSub').textContent = urlRows.length + ' VINs from CSV · click Run Pipeline';
       updateStats();
+      // Highlight button AFTER renderCombos (which may reset styles)
+      var capEl = document.getElementById('cap-url');
+      if (capEl) capEl.classList.add('loaded');
       fetchAllTokens().then(function() {
         // Fetch bg_ids after tokens are ready
         Object.keys(comboMap).forEach(function(ck) {
@@ -1426,7 +1426,7 @@ async function migFetchImages() {
 // Router — decides which pipeline to run based on what is loaded
 function handleRunPipeline() {
   // Force reload if cached version detected
-  if (document.title.indexOf('v2.2') === -1) {
+  if (document.title.indexOf('v2.3') === -1) {
     window.location.reload(true);
     return;
   }

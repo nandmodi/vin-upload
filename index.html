@@ -1187,12 +1187,9 @@ function handleURLCSV(file) {
       // Highlight Upload CSV button
       var capEl = document.getElementById('cap-url');
       if (capEl) { capEl.className=''; capEl.style.cssText += ';background:rgba(62,207,142,0.25);color:#3ecf8e;border-bottom:2px solid #3ecf8e;'; }
-      fetchAllTokens().then(function() {
-        // Fetch bg_ids after tokens are ready
-        Object.keys(comboMap).forEach(function(ck) {
-          fetchBgId(ck, loginToken);
-        });
-        // Enable Run Pipeline AFTER tokens ready
+      // Fetch bg_ids only (no token pre-generation — tokens generated per VIN at submit)
+      var _cks = Object.keys(comboMap);
+      Promise.all(_cks.map(function(ck) { return fetchBgId(ck, loginToken); })).then(function() {
         document.getElementById('runBtn').disabled = false;
       });
 

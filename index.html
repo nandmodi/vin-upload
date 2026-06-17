@@ -1103,7 +1103,7 @@ function resetURLCSV() {
   var el = document.getElementById('cap-url');
   var elInfo = document.getElementById('cap-url-info');
   var elTxt = document.getElementById('cap-url-txt');
-  if (el) { el.style.background = ''; el.style.color = ''; el.style.borderBottom = ''; }
+  if (el) { el.style.background = ''; el.style.color = ''; }
   if (elInfo) elInfo.style.display = 'none';
   if (elTxt) elTxt.textContent = 'Upload CSV';
   var inp = document.getElementById('csvURLInput');
@@ -1177,13 +1177,9 @@ function handleURLCSV(file) {
       document.getElementById('vinTable').style.display = 'table';
       document.getElementById('tblSub').textContent = urlRows.length + ' VINs from CSV · click Run Pipeline';
       updateStats();
-      // Highlight button with inline style — most reliable
+      // Highlight Upload CSV button — same as folder upload
       var capEl = document.getElementById('cap-url');
-      if (capEl) {
-        capEl.style.background = 'rgba(62,207,142,0.15)';
-        capEl.style.color = 'var(--green)';
-        capEl.style.borderBottom = '2px solid var(--green)';
-      }
+      if (capEl) { capEl.className=''; capEl.style.cssText += ';background:var(--green-dim);color:var(--green);'; }
       fetchAllTokens().then(function() {
         // Fetch bg_ids after tokens are ready
         Object.keys(comboMap).forEach(function(ck) {

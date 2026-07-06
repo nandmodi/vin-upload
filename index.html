@@ -942,7 +942,17 @@ async function callSpyne(vinData,imageUrls,bgId,token){
   if (enableVideo) log('info', `[${vinData.vin}] Feature Video enabled`);
   const res=await fetch(API_BASE+'/spyne-process',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({vin:vinData.vin,imageUrls:uniqueUrls,backgroundId:bgId,spyneToken:token,enableSpin,enableVideo,featureVideoConfig:(comboMap[ck]||{}).featureVideoConfig||{}})
+    body:JSON.stringify({
+    vin:vinData.vin,
+    teamId:vinData.team,
+    imageUrls:uniqueUrls,
+    backgroundId:bgId,
+    spyneToken:token,
+    enableSpin,
+    enableVideo,
+    featureVideoConfig:(comboMap[ck]||{}).featureVideoConfig||{},
+    vehicleData:{}
+  })
   });
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);

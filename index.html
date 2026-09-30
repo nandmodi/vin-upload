@@ -218,23 +218,26 @@
   <div class="s-section">
     <div class="s-title">Select Source</div>
     <!-- Capsule triggers file inputs appended to body on page load -->
-    <div style="display:flex;border:1px solid var(--border2);border-radius:12px;overflow:hidden;height:40px;background:var(--bg);">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
       <!-- Upload Folder -->
-      <div id="cap-folder" onclick="triggerFolderPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title="root / enterprise / team / VIN / images">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+      <div id="cap-folder" onclick="triggerFolderPick()" style="display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:9px 6px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);white-space:nowrap;" title="root / enterprise / team / VIN / images">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
         <span id="cap-folder-txt">Upload Folder</span>
       </div>
-      <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
-      <!-- Upload CSV (URL-based) -->
-      <div id="cap-url" onclick="triggerURLCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title=".csv with vin, enterprise_id, team_id, imageUrls">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+      <!-- Upload CSV -->
+      <div id="cap-url" onclick="triggerURLCSVPick()" style="display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:9px 6px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);white-space:nowrap;" title=".csv with vin, enterprise_id, team_id, imageUrls">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         <span id="cap-url-txt">Upload CSV</span>
       </div>
-      <div style="width:1px;background:var(--border2);align-self:stretch;"></div>
       <!-- Migration -->
-      <div id="cap-csv" onclick="triggerCSVPick()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:0 8px;white-space:nowrap;" title="Migration CSV">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-5-6z"/><polyline points="9 3 9 9 19 9"/></svg>
+      <div id="cap-csv" onclick="triggerCSVPick()" style="display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:9px 6px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);white-space:nowrap;" title="Migration CSV">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-5-6z"/><polyline points="9 3 9 9 19 9"/></svg>
         <span id="cap-csv-txt">Migration</span>
+      </div>
+      <!-- Reprocess -->
+      <div id="cap-reprocess" onclick="triggerReprocessPick()" style="display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-size:11px;color:var(--muted);transition:all .15s;padding:9px 6px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);white-space:nowrap;" title="Reprocess VINs CSV">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/></svg>
+        <span id="cap-reprocess-txt">Reprocess</span>
       </div>
     </div>
     <!-- Status rows for each source -->
@@ -248,6 +251,11 @@
     </div>
     <div id="cap-csv-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);">
       <span id="cap-csv-detail"></span>
+    </div>
+    <!-- Reprocess info row -->
+    <div id="cap-reprocess-info" style="display:none;margin-top:6px;font-size:11px;color:var(--green);align-items:center;justify-content:space-between;">
+      <span id="cap-reprocess-detail"></span>
+      <button class="btn sm" onclick="resetReprocess()" style="font-size:10px;padding:2px 8px;">✕</button>
     </div>
     <!-- Sample CSV hints — shown below each active source -->
     <div style="margin-top:6px;display:flex;justify-content:space-between;">
@@ -309,6 +317,19 @@
     <div id="mig-tbl-btns" style="display:none;gap:8px;align-items:center;">
       <button class="btn sm" onclick="migExportCSV()">&#8595; Export</button>
       <button class="btn sm" onclick="resetMig()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Reprocess section — stats + table -->
+  <div id="rpSection" style="display:none;">
+    <div class="tbl-wrap">
+      <table id="rpTable">
+        <thead><tr>
+          <th>Enterprise</th><th>Team</th><th>VIN</th>
+          <th>Dealer VIN ID</th><th>Status</th><th>Result</th>
+        </tr></thead>
+        <tbody id="rpBody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -599,6 +620,10 @@ async function fetchBgId(comboKey, tok) {
 // Capsule folder handler
 function triggerFolderPick() {
   var el = document.getElementById('fi');
+  if (el) { el.value = ''; el.click(); }
+}
+function triggerReprocessPick() {
+  var el = document.getElementById('csvReprocessInput');
   if (el) { el.value = ''; el.click(); }
 }
 function triggerURLCSVPick() {
@@ -1049,6 +1074,14 @@ window.addEventListener('load', () => {
   csvInput.addEventListener('change', function(){ if(this.files[0]) handleMigCSV(this.files[0]); });
   document.body.appendChild(csvInput);
 
+  // Reprocess CSV input
+  var rpInput = document.createElement('input');
+  rpInput.type = 'file'; rpInput.id = 'csvReprocessInput';
+  rpInput.accept = '.csv,.xlsx,.xls';
+  rpInput.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+  rpInput.addEventListener('change', function(){ if(this.files[0]) handleReprocessCSV(this.files[0]); });
+  document.body.appendChild(rpInput);
+
   // URL CSV input (vin + enterprise + team + imageUrls)
   var urlCsvInput = document.createElement('input');
   urlCsvInput.type = 'file'; urlCsvInput.id = 'csvURLInput';
@@ -1218,6 +1251,244 @@ function handleURLCSV(file) {
     } catch(err) { alert('Error reading file: ' + err.message); }
   };
   reader.readAsArrayBuffer(file);
+}
+
+/* ════════════════════════════════════════════
+   REPROCESS — CSV → summary-count → reprocess-vins
+   ════════════════════════════════════════════ */
+
+var rpRows    = [];  // { vin, ent, team }
+var rpData    = [];  // { vin, ent, team, dealerVinId, status }
+
+function resetReprocess() {
+  rpRows = []; rpData = [];
+  var el = document.getElementById('cap-reprocess');
+  if (el) { el.style.background=''; el.style.color=''; }
+  document.getElementById('cap-reprocess-info').style.display = 'none';
+  document.getElementById('csvReprocessInput').value = '';
+  document.getElementById('rpSection').style.display = 'none';
+  document.getElementById('emptyState').style.display = '';
+  document.getElementById('vinTable').style.display = 'none';
+  document.getElementById('tblSub').textContent = 'Select a folder to populate the queue';
+  document.getElementById('runBtn').disabled = true;
+}
+
+function handleReprocessCSV(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, { type: 'array' });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!raw.length) { alert('CSV is empty'); return; }
+
+      var rows = raw.map(function(r) {
+        var out = {};
+        Object.keys(r).forEach(function(k) { out[k.toLowerCase().replace(/[\s-]/g,'_')] = r[k]; });
+        return out;
+      });
+
+      rpRows = [];
+      rows.forEach(function(r) {
+        var vin  = String(r.vin || r.vin_name || '').trim();
+        var ent  = String(r.enterprise_id || '').trim();
+        var team = String(r.team_id || '').trim();
+        if (!vin || !ent || !team) return;
+        rpRows.push({ vin: vin, ent: ent, team: team });
+      });
+
+      if (!rpRows.length) { alert('No valid rows — need vin, enterprise_id, team_id columns'); return; }
+
+      // Update capsule
+      var capEl = document.getElementById('cap-reprocess');
+      if (capEl) { capEl.style.background='rgba(62,207,142,0.18)'; capEl.style.color='#3ecf8e'; }
+      var infoEl = document.getElementById('cap-reprocess-info');
+      var detailEl = document.getElementById('cap-reprocess-detail');
+      if (detailEl) detailEl.textContent = '✓ ' + rpRows.length + ' rows · ' + file.name;
+      if (infoEl) infoEl.style.display = 'flex';
+
+      // Show reprocess section
+      document.getElementById('rpSection').style.display = '';
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('tblSub').textContent = rpRows.length + ' VINs · click Run Pipeline to fetch status';
+      document.getElementById('runBtn').disabled = false;
+
+      // Render table with pending status
+      renderReprocessTable(rpRows);
+
+    } catch(err) { alert('Error reading file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderReprocessTable(rows) {
+  var tb = document.getElementById('rpBody');
+  if (!tb) return;
+  tb.innerHTML = '';
+  rows.forEach(function(r, i) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="tag ent">' + esc(r.ent.slice(0,8)) + '</span></td>' +
+      '<td><span class="tag team">' + esc(r.team.slice(0,8)) + '</span></td>' +
+      '<td style="font-family:var(--mono);font-size:12px;">' + esc(r.vin) + '</td>' +
+      '<td id="rp-dealerid-'+i+'" style="font-family:var(--mono);font-size:11px;color:var(--hint);">—</td>' +
+      '<td id="rp-status-'+i+'"><span class="badge pending">Pending</span></td>' +
+      '<td id="rp-result-'+i+'">—</td>';
+    tb.appendChild(tr);
+  });
+}
+
+async function runReprocess() {
+  if (!rpRows.length) return;
+
+  // Show reason modal
+  document.getElementById('rpReasonModal').style.display = 'flex';
+}
+
+function closeRpModal() {
+  document.getElementById('rpReasonModal').style.display = 'none';
+}
+
+async function confirmReprocess() {
+  var reason = document.getElementById('rpReasonSelect').value;
+  closeRpModal();
+
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').innerHTML = '<span class="spinner"></span> Running…';
+  setStatus('running', 'Fetching VIN status…');
+
+  // Phase 1: fetch summary-count to get dealerVinIds + status
+  // Group by enterprise+team
+  var groups = {};
+  rpRows.forEach(function(r, i) {
+    var gk = r.ent + '/' + r.team;
+    if (!groups[gk]) groups[gk] = { ent: r.ent, team: r.team, rows: [] };
+    groups[gk].rows.push({ row: r, idx: i });
+  });
+
+  rpData = rpRows.map(function(r, i) {
+    return { vin: r.vin, ent: r.ent, team: r.team, idx: i, dealerVinId: null, status: null };
+  });
+
+  for (var gk in groups) {
+    var g = groups[gk];
+    var vins = g.rows.map(function(x){ return x.row.vin; });
+
+    try {
+      // Generate token for this enterprise
+      var tokResp = await fetch(API_BASE + '/generate-token', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ loginToken: loginToken, enterpriseId: g.ent, teamId: g.team, userId: loginUserId })
+      });
+      var tokData = await tokResp.json();
+      var token = tokData.token;
+      if (!token) throw new Error('Token generation failed');
+
+      // Call summary-count via METABASE Lambda proxy to avoid CORS
+      var scResp = await fetch(METABASE_API, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'summary-count',
+          enterpriseId: g.ent,
+          teamIds: [g.team],
+          vins: vins,
+          token: token
+        })
+      });
+      var scData = await scResp.json();
+
+      // Parse result — build vin → dealerVinId + status map
+      var vinMap2 = {};
+      if (scData.done)       scData.done.forEach(function(x)       { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'done' }; });
+      if (scData.failed)     scData.failed.forEach(function(x)     { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'failed' }; });
+      if (scData.yetToStart) scData.yetToStart.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'yetToStart' }; });
+
+      // Update table + rpData
+      g.rows.forEach(function(x) {
+        var info = vinMap2[x.row.vin] || {};
+        rpData[x.idx].dealerVinId = info.dealerVinId || null;
+        rpData[x.idx].status = info.status || 'unknown';
+
+        var dEl = document.getElementById('rp-dealerid-'+x.idx);
+        var sEl = document.getElementById('rp-status-'+x.idx);
+        if (dEl) dEl.textContent = info.dealerVinId ? info.dealerVinId.slice(0,16)+'…' : '—';
+        if (sEl) {
+          var badge = info.status === 'done' ? 'spyneok' : info.status === 'failed' ? 'error' : 'pending';
+          var label = info.status === 'done' ? '✓ Done' : info.status === 'failed' ? '✗ Failed' : info.status === 'yetToStart' ? 'Yet to Start' : 'Unknown';
+          sEl.innerHTML = '<span class="badge ' + badge + '">' + label + '</span>';
+        }
+      });
+
+    } catch(err) {
+      g.rows.forEach(function(x) {
+        var sEl = document.getElementById('rp-status-'+x.idx);
+        if (sEl) sEl.innerHTML = '<span class="badge error">✗ Error</span>';
+        var rEl = document.getElementById('rp-result-'+x.idx);
+        if (rEl) rEl.textContent = err.message;
+      });
+    }
+  }
+
+  setStatus('running', 'Reprocessing VINs…');
+
+  // Phase 2: call reprocess-vins per group
+  for (var gk in groups) {
+    var g = groups[gk];
+    var gItems = g.rows.map(function(x){ return rpData[x.idx]; }).filter(function(d){ return d.dealerVinId; });
+    if (!gItems.length) continue;
+
+    try {
+      var tokResp2 = await fetch(API_BASE + '/generate-token', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ loginToken: loginToken, enterpriseId: g.ent, teamId: g.team, userId: loginUserId })
+      });
+      var tokData2 = await tokResp2.json();
+      var token2 = tokData2.token;
+      if (!token2) throw new Error('Token generation failed');
+
+      var done2    = gItems.filter(function(d){ return d.status === 'done'; });
+      var failed2  = gItems.filter(function(d){ return d.status === 'failed'; });
+      var yet2     = gItems.filter(function(d){ return d.status === 'yetToStart'; });
+
+      var rpPayload = {
+        reason: reason,
+        recordsWithStatus: {
+          done:       done2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; }),
+          failed:     failed2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; }),
+          yetToStart: yet2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; })
+        },
+        enterpriseId: g.ent,
+        teamId: g.team,
+        source: 'REPROCESS_TOOL_V2',
+        dealerVinIds: gItems.map(function(d){ return d.dealerVinId; }),
+        processingConfigs: null
+      };
+
+      var rpResp = await fetch(METABASE_API, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ action: 'reprocess-vins', payload: rpPayload, token: token2 })
+      });
+      var rpResult = await rpResp.json();
+
+      gItems.forEach(function(d) {
+        var rEl = document.getElementById('rp-result-'+d.idx);
+        if (rEl) rEl.innerHTML = '<span class="badge spyneok">✓ Reprocessed</span>';
+      });
+      log('ok', '['+g.ent+'/'+g.team+'] ' + gItems.length + ' VINs reprocessed ✅');
+
+    } catch(err) {
+      gItems.forEach(function(d) {
+        var rEl = document.getElementById('rp-result-'+d.idx);
+        if (rEl) rEl.innerHTML = '<span class="badge error">✗ ' + err.message + '</span>';
+      });
+      log('err', 'Reprocess error: ' + err.message);
+    }
+  }
+
+  setStatus('idle', '');
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').innerHTML = '▶ Run Pipeline';
 }
 
 /* ════════════════════════════════════════════
@@ -1458,12 +1729,17 @@ function handleRunPipeline() {
     window.location.reload(true);
     return;
   }
-  // If CSV migration rows are loaded → migration flow
+  // Reprocess flow
+  if (rpRows.length > 0) {
+    runReprocess();
+    return;
+  }
+  // Migration flow
   if (migRows.length > 0) {
     migRunPipeline();
     return;
   }
-  // Otherwise → original folder upload pipeline
+  // Folder upload / URL CSV pipeline
   runPipeline();
 }
 
@@ -1899,5 +2175,22 @@ function downloadSampleCSV() {
 
 </script>
 <!-- Modal injected dynamically via showDeleteModal() -->
+<!-- Reprocess Reason Modal -->
+<div id="rpReasonModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:24px 28px;width:360px;max-width:90vw;">
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Reprocess VINs</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Select a reason for reprocessing</div>
+    <select id="rpReasonSelect" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:18px;outline:none;">
+      <option value="vF">vF — Vehicle Freshness</option>
+      <option value="bC">bC — Background Change</option>
+      <option value="qI">qI — Quality Issue</option>
+      <option value="rR">rR — Re-render</option>
+    </select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn sm" onclick="closeRpModal()">Cancel</button>
+      <button class="btn sm primary" onclick="confirmReprocess()">▶ Reprocess</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

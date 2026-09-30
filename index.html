@@ -1413,12 +1413,14 @@ async function confirmReprocess() {
       var scData = await scResp.json();
       log('info', 'summary-count raw: ' + JSON.stringify(scData).substring(0, 200));
 
-      // Parse result — try both direct and nested response formats
-      var scRecords = scData.data || scData.recordsWithStatus || scData;
+      // Response is nested under data.data — arrays are done/failed/yetToStart
+      var scInner = (scData.data && scData.data.data) ? scData.data.data
+                  : scData.data ? scData.data
+                  : scData;
       var vinMap2 = {};
-      var doneList  = scRecords.done       || scData.done       || [];
-      var failList  = scRecords.failed     || scData.failed     || [];
-      var yetList   = scRecords.yetToStart || scData.yetToStart || [];
+      var doneList  = Array.isArray(scInner.done)       ? scInner.done       : [];
+      var failList  = Array.isArray(scInner.failed)     ? scInner.failed     : [];
+      var yetList   = Array.isArray(scInner.yetToStart) ? scInner.yetToStart : [];
       doneList.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'done' }; });
       failList.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'failed' }; });
       yetList.forEach(function(x)  { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'yetToStart' }; });

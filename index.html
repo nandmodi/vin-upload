@@ -1411,12 +1411,17 @@ async function confirmReprocess() {
         })
       });
       var scData = await scResp.json();
+      log('info', 'summary-count raw: ' + JSON.stringify(scData).substring(0, 200));
 
-      // Parse result — build vin → dealerVinId + status map
+      // Parse result — try both direct and nested response formats
+      var scRecords = scData.data || scData.recordsWithStatus || scData;
       var vinMap2 = {};
-      if (scData.done)       scData.done.forEach(function(x)       { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'done' }; });
-      if (scData.failed)     scData.failed.forEach(function(x)     { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'failed' }; });
-      if (scData.yetToStart) scData.yetToStart.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'yetToStart' }; });
+      var doneList  = scRecords.done       || scData.done       || [];
+      var failList  = scRecords.failed     || scData.failed     || [];
+      var yetList   = scRecords.yetToStart || scData.yetToStart || [];
+      doneList.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'done' }; });
+      failList.forEach(function(x) { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'failed' }; });
+      yetList.forEach(function(x)  { vinMap2[x.vin] = { dealerVinId: x.dealerVinId, status: 'yetToStart' }; });
 
       // Update table + rpData
       g.rows.forEach(function(x) {
@@ -2226,12 +2231,8 @@ function downloadSampleCSV() {
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:24px 28px;width:360px;max-width:90vw;">
     <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Reprocess VINs</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Select a reason for reprocessing</div>
-    <select id="rpReasonSelect" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:18px;outline:none;">
-      <option value="vF">vF — Vehicle Freshness</option>
-      <option value="bC">bC — Background Change</option>
-      <option value="qI">qI — Quality Issue</option>
-      <option value="rR">rR — Re-render</option>
-    </select>
+    <input id="rpReasonSelect" type="text" placeholder="e.g. vF" value="vF" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:6px;outline:none;">
+    <div style="font-size:11px;color:var(--hint);margin-bottom:18px;">Common: vF (Vehicle Freshness), bC (Background Change), qI (Quality Issue), rR (Re-render)</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn sm" onclick="closeRpModal()">Cancel</button>
       <button class="btn sm primary" onclick="confirmReprocess()">▶ Reprocess</button>

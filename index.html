@@ -1458,13 +1458,15 @@ async function confirmReprocess() {
     if (!gItems.length) continue;
 
     try {
+      // Generate fresh token immediately before reprocess to prevent invalidation
       var tokResp2 = await fetch(API_BASE + '/generate-token', {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ loginToken: loginToken, enterpriseId: g.ent, teamId: g.team, userId: loginUserId })
       });
       var tokData2 = await tokResp2.json();
       var token2 = tokData2.token;
-      if (!token2) throw new Error('Token generation failed');
+      if (!token2) throw new Error('Token generation failed for reprocess');
+      log('info', '['+g.ent+'/'+g.team+'] Fresh token for reprocess ✅');
 
       var done2    = gItems.filter(function(d){ return d.status === 'done'; });
       var failed2  = gItems.filter(function(d){ return d.status === 'failed'; });
@@ -1505,6 +1507,7 @@ async function confirmReprocess() {
       });
       var rpResult = await rpResp.json();
 
+      if (!rpResp.ok) throw new Error('HTTP ' + rpResp.status + ' — ' + JSON.stringify(rpResult).substring(0,100));
       gItems.forEach(function(d) {
         var rEl = document.getElementById('rp-result-'+d.idx);
         if (rEl) rEl.innerHTML = '<span class="badge spyneok">✓ Reprocessed</span>';

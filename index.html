@@ -1472,20 +1472,8 @@ async function confirmReprocess() {
       var failed2  = gItems.filter(function(d){ return d.status === 'failed'; });
       var yet2     = gItems.filter(function(d){ return d.status === 'yetToStart'; });
 
-      // Build processingConfigs from per-row product selection
-      // Use first item's settings as group config (all items in group share ent+team)
-      var firstItem = gItems[0];
-      var firstRow  = rpRows.find(function(r){ return r.vin === firstItem.vin && r.ent === g.ent && r.team === g.team; }) || {};
-      var hasImage  = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableImage; });
-      var hasSpin   = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableSpin; });
-      var hasVideo  = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableVideo; });
-      var procConfigs = (hasImage || hasSpin || hasVideo) ? {
-        image:        hasImage ? {} : undefined,
-        spin:         hasSpin  ? {} : undefined,
-        featureVideo: hasVideo ? {} : undefined,
-      } : null;
-      // Remove undefined keys
-      if (procConfigs) Object.keys(procConfigs).forEach(function(k){ if(!procConfigs[k]) delete procConfigs[k]; });
+      // processingConfigs — null means use account default
+      var procConfigs = null;
 
       var rpPayload = {
         reason: reason,

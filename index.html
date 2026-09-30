@@ -267,6 +267,10 @@
         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
         ↓ Migration
       </button>
+      <button onclick="downloadSampleReprocessCSV()" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:11px;color:var(--hint);padding:2px 0;transition:color .15s;" onmouseenter="this.style.color='var(--green)'" onmouseleave="this.style.color='var(--hint)'" title="Sample for Reprocess">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+        ↓ Reprocess
+      </button>
     </div>
   </div>
 
@@ -326,7 +330,7 @@
       <table id="rpTable">
         <thead><tr>
           <th>Enterprise</th><th>Team</th><th>VIN</th>
-          <th>Dealer VIN ID</th><th>Status</th><th>Result</th>
+          <th>Dealer VIN ID</th><th>Status</th><th>Image</th><th>360</th><th>Video</th><th>Result</th>
         </tr></thead>
         <tbody id="rpBody"></tbody>
       </table>
@@ -1295,7 +1299,14 @@ function handleReprocessCSV(file) {
         var ent  = String(r.enterprise_id || '').trim();
         var team = String(r.team_id || '').trim();
         if (!vin || !ent || !team) return;
-        rpRows.push({ vin: vin, ent: ent, team: team });
+        rpRows.push({
+          vin:           vin,
+          ent:           ent,
+          team:          team,
+          enableImage:   String(r.enable_image || '').toLowerCase() === 'true',
+          enableSpin:    String(r.enable_360   || '').toLowerCase() === 'true',
+          enableVideo:   String(r.enable_video || '').toLowerCase() === 'true',
+        });
       });
 
       if (!rpRows.length) { alert('No valid rows — need vin, enterprise_id, team_id columns'); return; }
@@ -1334,6 +1345,9 @@ function renderReprocessTable(rows) {
       '<td style="font-family:var(--mono);font-size:12px;">' + esc(r.vin) + '</td>' +
       '<td id="rp-dealerid-'+i+'" style="font-family:var(--mono);font-size:11px;color:var(--hint);">—</td>' +
       '<td id="rp-status-'+i+'"><span class="badge pending">Pending</span></td>' +
+      '<td style="text-align:center;"><input type="checkbox" id="rp-img-'+i+'" style="accent-color:var(--blue);cursor:pointer;" onchange="if(rpRows['+i+'])rpRows['+i+'].enableImage=this.checked" ' + (r.enableImage?'checked':'') + '></td>' +
+      '<td style="text-align:center;"><input type="checkbox" id="rp-spin-'+i+'" style="accent-color:var(--green);cursor:pointer;" onchange="if(rpRows['+i+'])rpRows['+i+'].enableSpin=this.checked" ' + (r.enableSpin?'checked':'') + '></td>' +
+      '<td style="text-align:center;"><input type="checkbox" id="rp-vid-'+i+'" style="accent-color:var(--purple);cursor:pointer;" onchange="if(rpRows['+i+'])rpRows['+i+'].enableVideo=this.checked" ' + (r.enableVideo?'checked':'') + '></td>' +
       '<td id="rp-result-'+i+'">—</td>';
     tb.appendChild(tr);
   });
@@ -1451,6 +1465,21 @@ async function confirmReprocess() {
       var failed2  = gItems.filter(function(d){ return d.status === 'failed'; });
       var yet2     = gItems.filter(function(d){ return d.status === 'yetToStart'; });
 
+      // Build processingConfigs from per-row product selection
+      // Use first item's settings as group config (all items in group share ent+team)
+      var firstItem = gItems[0];
+      var firstRow  = rpRows.find(function(r){ return r.vin === firstItem.vin && r.ent === g.ent && r.team === g.team; }) || {};
+      var hasImage  = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableImage; });
+      var hasSpin   = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableSpin; });
+      var hasVideo  = gItems.some(function(d){ var r = rpRows.find(function(r2){ return r2.vin===d.vin; }) || {}; return r.enableVideo; });
+      var procConfigs = (hasImage || hasSpin || hasVideo) ? {
+        image:        hasImage ? {} : undefined,
+        spin:         hasSpin  ? {} : undefined,
+        featureVideo: hasVideo ? {} : undefined,
+      } : null;
+      // Remove undefined keys
+      if (procConfigs) Object.keys(procConfigs).forEach(function(k){ if(!procConfigs[k]) delete procConfigs[k]; });
+
       var rpPayload = {
         reason: reason,
         recordsWithStatus: {
@@ -1462,7 +1491,7 @@ async function confirmReprocess() {
         teamId: g.team,
         source: 'REPROCESS_TOOL_V2',
         dealerVinIds: gItems.map(function(d){ return d.dealerVinId; }),
-        processingConfigs: null
+        processingConfigs: procConfigs
       };
 
       var rpResp = await fetch(METABASE_API, {
@@ -2113,6 +2142,23 @@ function resetMig() {
   if (capC) { capC.style.background = ''; capC.style.color = ''; }
   var capCInfo = document.getElementById('cap-csv-info');
   if (capCInfo) capCInfo.style.display = 'none';
+}
+
+function downloadSampleReprocessCSV() {
+  var rows = [
+    ['enterprise_id', 'team_id', 'vin', 'enable_image', 'enable_360', 'enable_video'],
+    ['ec7fa01a5', '133218a6aa', 'LRBFZPR41PD038966', 'true', 'false', 'false'],
+    ['ec7fa01a5', '133218a6aa', 'KL4MMDSL2PB029318', 'true', 'true',  'false'],
+    ['ec7fa01a5', '133218a6aa', 'KNDJN2A2XJ7507456', 'true', 'false', 'true'],
+  ];
+  var csv = '﻿' + rows.map(function(r){
+    return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  }).join('\r\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'sample_reprocess.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ if(a.parentNode) a.parentNode.removeChild(a); URL.revokeObjectURL(a.href); }, 500);
 }
 
 function downloadSampleURLCSV() {

@@ -1364,6 +1364,68 @@ function closeRpModal() {
   document.getElementById('rpReasonModal').style.display = 'none';
 }
 
+// ── Reprocess: product keys + BG resolve ──
+// isSpin confirmed from admin curl; isImage NOT yet confirmed
+var RP_PRODUCT_KEYS = { image: 'isImage', spin: 'isSpin' };
+var rpBgCache = {};
+function rpAppendResult(el, html) { el.innerHTML = (el.innerHTML && el.innerHTML !== '—' ? el.innerHTML + ' ' : '') + html; }
+
+// Returns { base, spin, catalog } for an enterprise/team
+//   base    → get-bg-id (default, or the only team bg)
+//   spin    → Metabase 13199 spin_bg   (360 BG)
+//   catalog → Metabase 13199 catalog_bg (Image BG), falls back to base
+async function rpResolveBg(ent, team) {
+  var ck = ent + '/' + team;
+  if (rpBgCache[ck]) return rpBgCache[ck];
+  var out = { base: '', spin: '', catalog: '' };
+
+  // 1. Base BG — same source as fetchBgId
+  try {
+    var bearerTok = loginToken.startsWith('Bearer ') ? loginToken : 'Bearer ' + loginToken;
+    var r = await fetch(API_BASE + '/get-bg-id', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enterpriseId: ent, teamId: team, loginToken: bearerTok })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'API failed');
+    var teamBgs = d.teamBgs || [];
+    if (d.defaultBackground) {
+      out.base = String(d.defaultBackground);
+    } else if (teamBgs.length === 1) {
+      var t0 = teamBgs[0];
+      out.base = String(t0.background_id || t0._id || t0.id || t0);
+    }
+  } catch (e) {
+    log('warn', '[' + ck + '] get-bg-id failed: ' + e.message);
+  }
+  if (!out.base) { log('err', '[' + ck + '] No base BG found'); rpBgCache[ck] = out; return out; }
+  log('info', '[' + ck + '] base BG: ' + out.base);
+
+  // 2. Spin / Catalog pair from Metabase 13199 (via Lambda)
+  try {
+    var mr = await fetch(METABASE_API, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'bg-type-finder', bgId: out.base })
+    });
+    var md = await mr.json();
+    if (!mr.ok) throw new Error(md.error || ('HTTP ' + mr.status));
+    if (md.found) {
+      out.spin    = md.spinBg || '';
+      out.catalog = md.catalogBg || '';
+      log('ok', '[' + ck + '] BG pair → 360: ' + (out.spin || '—') + ' | Image: ' + (out.catalog || '—') + ' (' + md.bgType + ')');
+    } else {
+      log('warn', '[' + ck + '] BG ' + out.base + ' not found in Metabase 13199');
+    }
+  } catch (e) {
+    log('warn', '[' + ck + '] BG type lookup failed: ' + e.message);
+  }
+  if (!out.catalog) out.catalog = out.base;   // Image → base BG fallback
+  // 360 → no guess: stays '' if Metabase didn't give spin_bg
+
+  rpBgCache[ck] = out;
+  return out;
+}
+
 async function confirmReprocess() {
   var reason = document.getElementById('rpReasonSelect').value;
   closeRpModal();
@@ -1451,57 +1513,88 @@ async function confirmReprocess() {
 
   setStatus('running', 'Reprocessing VINs…');
 
-  // Phase 2: call reprocess-vins per group
+  // Phase 2: call reprocess-vins per group (+ per product combo)
+  rpBgCache = {};
+  rpData.forEach(function(d){ var el = document.getElementById('rp-result-'+d.idx); if (el && d.dealerVinId) el.innerHTML = ''; });
   for (var gk in groups) {
     var g = groups[gk];
     var gItems = g.rows.map(function(x){ return rpData[x.idx]; }).filter(function(d){ return d.dealerVinId; });
     if (!gItems.length) continue;
 
-    try {
-      // Use loginToken directly for reprocess — Spyne reprocess API uses loginToken not scoped token
-      var token2 = loginToken.replace(/^Bearer\s+/i, '');
-      log('info', '['+g.ent+'/'+g.team+'] Using loginToken for reprocess');
-
-      var done2    = gItems.filter(function(d){ return d.status === 'done'; });
-      var failed2  = gItems.filter(function(d){ return d.status === 'failed'; });
-      var yet2     = gItems.filter(function(d){ return d.status === 'yetToStart'; });
-
-      // processingConfigs — null means use account default
-      var procConfigs = null;
-
-      var rpPayload = {
-        reason: reason,
-        recordsWithStatus: {
-          done:       done2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; }),
-          failed:     failed2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; }),
-          yetToStart: yet2.map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; })
-        },
-        enterpriseId: g.ent,
-        teamId: g.team,
-        source: 'REPROCESS_TOOL_V2',
-        dealerVinIds: gItems.map(function(d){ return d.dealerVinId; }),
-        processingConfigs: procConfigs
-      };
-
-      var rpResp = await fetch(METABASE_API, {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ action: 'reprocess-vins', payload: rpPayload, token: token2 })
+    // Sub-group by Image/360 checkbox combo — one call carries one outputData
+    // Image and 360 go as separate calls (each needs its own BG)
+    var subs = {};
+    gItems.forEach(function(d) {
+      var row = rpRows[d.idx] || {};
+      var keys = [];
+      if (row.enableImage) keys.push('I');
+      if (row.enableSpin)  keys.push('S');
+      if (!keys.length)    keys.push('DEFAULT');
+      keys.forEach(function(sk) {
+        if (!subs[sk]) subs[sk] = { img: sk === 'I', spin: sk === 'S', items: [] };
+        subs[sk].items.push(d);
       });
-      var rpResult = await rpResp.json();
+    });
 
-      if (!rpResp.ok) throw new Error('HTTP ' + rpResp.status + ' — ' + JSON.stringify(rpResult).substring(0,100));
-      gItems.forEach(function(d) {
-        var rEl = document.getElementById('rp-result-'+d.idx);
-        if (rEl) rEl.innerHTML = '<span class="badge spyneok">✓ Reprocessed</span>';
-      });
-      log('ok', '['+g.ent+'/'+g.team+'] ' + gItems.length + ' VINs reprocessed ✅');
+    for (var sk in subs) {
+      var sub   = subs[sk];
+      var items = sub.items;
+      var label = sk === 'DEFAULT' ? 'Default' : [sub.img ? 'Image' : '', sub.spin ? '360' : ''].filter(Boolean).join('+');
 
-    } catch(err) {
-      gItems.forEach(function(d) {
-        var rEl = document.getElementById('rp-result-'+d.idx);
-        if (rEl) rEl.innerHTML = '<span class="badge error">✗ ' + err.message + '</span>';
-      });
-      log('err', 'Reprocess error: ' + err.message);
+      try {
+        // Use loginToken directly for reprocess — Spyne reprocess API uses loginToken not scoped token
+        var token2 = loginToken.replace(/^Bearer\s+/i, '');
+
+        var bgId = '', products = null;
+        if (sk !== 'DEFAULT') {
+          var bgs = await rpResolveBg(g.ent, g.team);
+          bgId = sub.spin ? bgs.spin : bgs.catalog;
+          if (!bgId) throw new Error(sub.spin ? 'No 360 BG found' : 'No BG found');
+          products = {};
+          products[sub.spin ? RP_PRODUCT_KEYS.spin : RP_PRODUCT_KEYS.image] = true;
+        }
+
+        var pick = function(st) {
+          return items.filter(function(d){ return d.status === st; })
+                      .map(function(d){ return { dealerVinId: d.dealerVinId, vin: d.vin }; });
+        };
+
+        var rpPayload = {
+          reason: reason,
+          recordsWithStatus: { done: pick('done'), yetToStart: pick('yetToStart'), failed: pick('failed') },
+          enterpriseId: g.ent,
+          teamId: g.team,
+          source: 'REPROCESS_TOOL_V2',
+          dealerVinIds: items.map(function(d){ return d.dealerVinId; }),
+          processingConfigs: null   // no checkbox ticked → account default (old behaviour)
+        };
+        if (products) {
+          rpPayload.isHash = true;
+          rpPayload.processingConfigs = { backgroundId: bgId };
+          rpPayload.outputData = { products: products };
+        }
+        log('info', '['+g.ent+'/'+g.team+'] Reprocess ' + label + (bgId ? ' · BG ' + bgId : '') + ' · ' + items.length + ' VINs');
+
+        var rpResp = await fetch(METABASE_API, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ action: 'reprocess-vins', payload: rpPayload, token: token2 })
+        });
+        var rpResult = await rpResp.json();
+
+        if (!rpResp.ok) throw new Error('HTTP ' + rpResp.status + ' — ' + JSON.stringify(rpResult).substring(0,100));
+        items.forEach(function(d) {
+          var rEl = document.getElementById('rp-result-'+d.idx);
+          if (rEl) rpAppendResult(rEl, '<span class="badge spyneok">✓ ' + label + (bgId ? ' · BG ' + bgId : '') + '</span>');
+        });
+        log('ok', '['+g.ent+'/'+g.team+'] ' + items.length + ' VINs reprocessed (' + label + ') ✅');
+
+      } catch(err) {
+        items.forEach(function(d) {
+          var rEl = document.getElementById('rp-result-'+d.idx);
+          if (rEl) rpAppendResult(rEl, '<span class="badge error">✗ ' + label + ': ' + esc(err.message) + '</span>');
+        });
+        log('err', '['+g.ent+'/'+g.team+'] Reprocess (' + label + ') error: ' + err.message);
+      }
     }
   }
 

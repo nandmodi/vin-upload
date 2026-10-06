@@ -1405,7 +1405,7 @@ function rpAppendResult(el, html) { el.innerHTML = (el.innerHTML && el.innerHTML
 async function rpResolveBg(ent, team) {
   var ck = ent + '/' + team;
   if (rpBgCache[ck]) return rpBgCache[ck];
-  var out = { base: '', spin: '', catalog: '' };
+  var out = { base: '', spin: '', catalog: '', reason: '' };
 
   // 1. Base BG — same source as fetchBgId
   try {
@@ -1425,8 +1425,13 @@ async function rpResolveBg(ent, team) {
     }
   } catch (e) {
     log('warn', '[' + ck + '] get-bg-id failed: ' + e.message);
+    out.reason = 'get-bg-id failed: ' + e.message;
   }
-  if (!out.base) { log('err', '[' + ck + '] No base BG found'); rpBgCache[ck] = out; return out; }
+  if (!out.base) {
+    if (!out.reason) out.reason = 'No default BG on team';
+    log('err', '[' + ck + '] ' + out.reason);
+    rpBgCache[ck] = out; return out;
+  }
   log('info', '[' + ck + '] base BG: ' + out.base);
 
   // 2. Spin / Catalog pair from Metabase 13199 (via Lambda)
@@ -1442,10 +1447,12 @@ async function rpResolveBg(ent, team) {
       out.catalog = md.catalogBg || '';
       log('ok', '[' + ck + '] BG pair → 360: ' + (out.spin || '—') + ' | Image: ' + (out.catalog || '—') + ' (' + md.bgType + ')');
     } else {
-      log('warn', '[' + ck + '] BG ' + out.base + ' not found in Metabase 13199');
+      out.reason = 'BG ' + out.base + ' not in 13199';
+      log('warn', '[' + ck + '] ' + out.reason);
     }
   } catch (e) {
-    log('warn', '[' + ck + '] BG type lookup failed: ' + e.message);
+    out.reason = '13199 lookup failed: ' + e.message;
+    log('warn', '[' + ck + '] ' + out.reason);
   }
   if (!out.catalog) out.catalog = out.base;   // Image → base BG fallback
   // 360 → no guess: stays '' if Metabase didn't give spin_bg
@@ -1577,7 +1584,7 @@ async function confirmReprocess() {
         if (sk !== 'DEFAULT') {
           var bgs = await rpResolveBg(g.ent, g.team);
           bgId = sub.spin ? bgs.spin : bgs.catalog;
-          if (!bgId) throw new Error(sub.spin ? 'No 360 BG found' : 'No BG found');
+          if (!bgId) throw new Error((sub.spin ? 'No 360 BG' : 'No BG') + (bgs.reason ? ' (' + bgs.reason + ')' : ''));
           products = {};
           products[sub.spin ? RP_PRODUCT_KEYS.spin : RP_PRODUCT_KEYS.image] = true;
         }

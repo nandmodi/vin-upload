@@ -322,6 +322,9 @@
       <button class="btn sm" onclick="migExportCSV()">&#8595; Export</button>
       <button class="btn sm" onclick="resetMig()">✕ Clear</button>
     </div>
+    <div id="rp-tbl-btns" style="display:none;gap:8px;align-items:center;">
+      <button class="btn sm" onclick="rpExportCSV()">&#8595; Download Status</button>
+    </div>
   </div>
 
   <!-- Reprocess section — stats + table -->
@@ -1271,6 +1274,7 @@ function resetReprocess() {
   document.getElementById('cap-reprocess-info').style.display = 'none';
   document.getElementById('csvReprocessInput').value = '';
   document.getElementById('rpSection').style.display = 'none';
+  document.getElementById('rp-tbl-btns').style.display = 'none';
   document.getElementById('emptyState').style.display = '';
   document.getElementById('vinTable').style.display = 'none';
   document.getElementById('tblSub').textContent = 'Select a folder to populate the queue';
@@ -1321,6 +1325,7 @@ function handleReprocessCSV(file) {
 
       // Show reprocess section
       document.getElementById('rpSection').style.display = '';
+      document.getElementById('rp-tbl-btns').style.display = 'flex';
       document.getElementById('emptyState').style.display = 'none';
       document.getElementById('tblSub').textContent = rpRows.length + ' VINs · click Run Pipeline to fetch status';
       document.getElementById('runBtn').disabled = false;
@@ -1331,6 +1336,29 @@ function handleReprocessCSV(file) {
     } catch(err) { alert('Error reading file: ' + err.message); }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Reprocess: download current queue status as CSV (opens in Excel) ──
+function rpExportCSV() {
+  if (!rpRows || !rpRows.length) { alert('No VINs in queue'); return; }
+  var txt = function(id) { var el = document.getElementById(id); return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
+  var yn  = function(v) { return v ? 'Y' : 'N'; };
+  var cell = function(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  var lines = [['enterprise_id','team_id','vin','dealer_vin_id','status','image','360','video','result'].join(',')];
+  rpRows.forEach(function(r, i) {
+    var d = (rpData && rpData[i]) || {};
+    var dvid = d.dealerVinId || txt('rp-dealerid-' + i).replace(/^—$/, '');
+    var res  = txt('rp-result-' + i).replace(/^—$/, '');
+    lines.push([r.ent, r.team, r.vin, dvid, txt('rp-status-' + i), yn(r.enableImage), yn(r.enableSpin), yn(r.enableVideo), res].map(cell).join(','));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  var ts = new Date().toISOString().slice(0,16).replace(/[-:T]/g, '');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'reprocess_status_' + ts + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  log('ok', 'Reprocess status exported (' + rpRows.length + ' VINs)');
 }
 
 function renderReprocessTable(rows) {
